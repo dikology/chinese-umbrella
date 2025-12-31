@@ -15,8 +15,8 @@ import Foundation
 struct DIContainer {
     // MARK: - Domain Layer
 
-    // Use Cases - TODO: Implement in future phases
-    // static let authUseCase = AuthUseCase(repository: authRepository)
+    // Use Cases
+    static let authUseCase = AuthUseCase(repository: authRepository, keychainService: keychainService)
     // static let readingUseCase = ReadingUseCase(repository: readingProgressRepository, dictionaryRepository: dictionaryRepository)
     // static let bookUploadUseCase = BookUploadUseCase(repository: bookRepository)
     // static let wordMarkingUseCase = WordMarkingUseCase(repository: wordMarkerRepository)
@@ -38,7 +38,8 @@ struct DIContainer {
 
     // MARK: - Infrastructure Layer
 
-    // Services - TODO: Implement in future phases
+    // Services
+    static let keychainService = KeychainService()
     // static let ocrService = AppleVisionOCRService()
     // static let textSegmentationService = HanLPSegmentationService()
     // static let dictionaryService = CEDICTDictionaryService()
@@ -55,6 +56,11 @@ struct DIContainer {
     // MARK: - Core Data
 
     static let coreDataManager = CoreDataManager.shared
+
+    // MARK: - View Models
+
+    @MainActor
+    static let authViewModel = AuthViewModel(authUseCase: authUseCase)
 
     // MARK: - Preview Instances (for SwiftUI Previews)
 

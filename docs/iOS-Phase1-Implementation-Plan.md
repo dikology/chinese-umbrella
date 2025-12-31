@@ -1034,7 +1034,6 @@ Response: {
 ### Month 1: Architecture & Auth
 - **Week 1-2**: Project setup, DI container, Core Data schema
 - **Week 3**: Authentication (email/password, Apple Sign-In)
-- **Week 4**: Onboarding proficiency assessment
 
 ### Month 2: OCR & Library
 - **Week 5-6**: Camera integration, photo picker, image handling

@@ -7,6 +7,7 @@
 
 import CoreData
 import Foundation
+import AuthenticationServices
 
 /// Core Data implementation of AuthRepository
 class AuthRepositoryImpl: AuthRepository {
@@ -61,11 +62,33 @@ class AuthRepositoryImpl: AuthRepository {
         return user
     }
 
-    /// Sign in with Apple ID (placeholder for Phase 2)
-    func signInWithApple(credential: String) async throws -> AppUser {
-        // Phase 1: Mock implementation
-        // In Phase 2, validate Apple credential and create/link account
-        throw AuthError.appleSignInFailed
+    /// Sign in with Apple ID
+    func signInWithApple(credential: ASAuthorizationAppleIDCredential) async throws -> AppUser {
+        // Extract user identifier from Apple credential
+        let appleUserId = credential.user
+
+        // Check if user already exists with this Apple ID
+        if let existingUser = try await findUserByAppleId(appleUserId) {
+            return existingUser
+        }
+
+        // Create new user account
+        let email = credential.email ?? "\(appleUserId)@apple.com" // Apple may not provide email on subsequent logins
+        let fullName = credential.fullName
+        let displayName = [
+            fullName?.givenName,
+            fullName?.familyName
+        ].compactMap { $0 }.joined(separator: " ")
+
+        let user = AppUser(
+            email: email,
+            displayName: displayName.isEmpty ? "Apple User" : displayName
+        )
+
+        // Save Apple ID mapping for future logins
+        try await saveUserWithAppleId(user, appleUserId: appleUserId)
+
+        return user
     }
 
     /// Get current authenticated user (Phase 1: return first user)
@@ -165,6 +188,28 @@ class AuthRepositoryImpl: AuthRepository {
         // Phase 2: Use proper password hashing like Argon2
         let data = password.data(using: .utf8)!
         return data.map { String(format: "%02x", $0) }.joined()
+    }
+
+    private func findUserByAppleId(_ appleUserId: String) async throws -> AppUser? {
+        try await coreDataManager.performBackgroundTask { context in
+            let request: NSFetchRequest<AppUserEntity> = AppUserEntity.fetchRequest()
+            request.predicate = NSPredicate(format: "appleUserId == %@", appleUserId)
+
+            guard let userEntity = try context.fetch(request).first else {
+                return nil
+            }
+
+            return AppUser.fromEntity(userEntity)
+        }
+    }
+
+    private func saveUserWithAppleId(_ user: AppUser, appleUserId: String) async throws {
+        try await coreDataManager.performBackgroundTask { context in
+            let userEntity = AppUserEntity(context: context)
+            userEntity.update(from: user)
+            userEntity.appleUserId = appleUserId
+            try context.save()
+        }
     }
 }
 
