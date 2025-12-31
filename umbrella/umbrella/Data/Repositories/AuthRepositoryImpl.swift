@@ -99,8 +99,7 @@ class AuthRepositoryImpl: AuthRepository {
 
             do {
                 let fetchedObjects = try context.fetch(request)
-                guard let firstObject = fetchedObjects.first,
-                      let userEntity = firstObject as? UserEntity else {
+                guard let userEntity = fetchedObjects.first else {
                     return nil
                 }
                 return AppUser.fromEntity(userEntity)
@@ -126,8 +125,7 @@ class AuthRepositoryImpl: AuthRepository {
             request.predicate = NSPredicate(format: "id == %@", user.id as CVarArg)
 
             let fetchedObjects = try context.fetch(request)
-            guard let firstObject = fetchedObjects.first,
-                  let userEntity = firstObject as? UserEntity else {
+            guard let userEntity = fetchedObjects.first else {
                 throw AuthError.userNotFound
             }
 
@@ -145,8 +143,7 @@ class AuthRepositoryImpl: AuthRepository {
             request.predicate = NSPredicate(format: "id == %@", userId as CVarArg)
 
             let fetchedObjects = try context.fetch(request)
-            guard let firstObject = fetchedObjects.first,
-                  let userEntity = firstObject as? UserEntity else {
+            guard let userEntity = fetchedObjects.first else {
                 throw AuthError.userNotFound
             }
 
@@ -174,7 +171,7 @@ class AuthRepositoryImpl: AuthRepository {
             request.predicate = NSPredicate(format: "email == %@", email)
 
             let fetchedObjects = try context.fetch(request)
-            guard let userEntity = fetchedObjects.first as? UserEntity else {
+            guard let userEntity = fetchedObjects.first else {
                 return nil
             }
 
@@ -209,7 +206,7 @@ class AuthRepositoryImpl: AuthRepository {
             request.predicate = NSPredicate(format: "appleUserId == %@", appleUserId)
 
             let fetchedObjects = try context.fetch(request)
-            guard let userEntity = fetchedObjects.first as? UserEntity else {
+            guard let userEntity = fetchedObjects.first else {
                 return nil
             }
 
