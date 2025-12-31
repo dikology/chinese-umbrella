@@ -24,6 +24,8 @@
         <attribute name="createdDate" optional="NO" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="updatedDate" optional="NO" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="isSynced" optional="NO" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="currentPageIndex" optional="NO" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="isLocal" optional="NO" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
         <relationship name="owner" optional="NO" maxCount="1" deletionRule="Nullify" destinationEntity="User" inverseName="books" inverseEntity="User"/>
         <relationship name="pages" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="BookPage" inverseName="book" inverseEntity="BookPage"/>
         <relationship name="markedWords" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="MarkedWord" inverseName="book" inverseEntity="MarkedWord"/>
