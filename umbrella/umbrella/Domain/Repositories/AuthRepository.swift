@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import AuthenticationServices
 
 /// Repository protocol for authentication operations
 protocol AuthRepository {
@@ -16,7 +17,7 @@ protocol AuthRepository {
     func signIn(email: String, password: String) async throws -> AppUser
 
     /// Sign in with Apple ID
-    func signInWithApple(credential: String) async throws -> AppUser
+    func signInWithApple(credential: ASAuthorizationAppleIDCredential) async throws -> AppUser
 
     /// Get current authenticated user
     func getCurrentUser() async throws -> AppUser?
