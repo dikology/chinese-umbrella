@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="1" systemVersion="11A491" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithCloudKit="false" userDefinedModelVersionIdentifier="">
+    <!-- User Entity -->
+    <entity name="User" representedClassName="AppUserEntity" syncable="YES" codeGenerationType="class">
+        <attribute name="id" optional="NO" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="email" optional="NO" attributeType="String"/>
+        <attribute name="displayName" optional="NO" attributeType="String"/>
+        <attribute name="passwordHash" optional="YES" attributeType="String"/>
+        <attribute name="hskLevel" optional="NO" attributeType="Integer 16" defaultValueString="1" usesScalarValueType="YES"/>
+        <attribute name="vocabularyMasteryPct" optional="NO" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <attribute name="createdAt" optional="NO" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="updatedAt" optional="NO" attributeType="Date" usesScalarValueType="NO"/>
+        <relationship name="books" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Book" inverseName="owner" inverseEntity="Book"/>
+        <relationship name="markedWords" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="MarkedWord" inverseName="user" inverseEntity="MarkedWord"/>
+        <relationship name="userPreferences" optional="YES" maxCount="1" deletionRule="Cascade" destinationEntity="UserPreferences" inverseName="user" inverseEntity="UserPreferences"/>
+    </entity>
+
+    <!-- Book Entity -->
+    <entity name="Book" representedClassName="Book" syncable="YES" codeGenerationType="class">
+        <attribute name="id" optional="NO" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="title" optional="NO" attributeType="String"/>
+        <attribute name="author" optional="YES" attributeType="String"/>
+        <attribute name="createdDate" optional="NO" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="updatedDate" optional="NO" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="isSynced" optional="NO" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <relationship name="owner" optional="NO" maxCount="1" deletionRule="Nullify" destinationEntity="User" inverseName="books" inverseEntity="User"/>
+        <relationship name="pages" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="BookPage" inverseName="book" inverseEntity="BookPage"/>
+        <relationship name="markedWords" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="MarkedWord" inverseName="book" inverseEntity="MarkedWord"/>
+    </entity>
+
+    <!-- BookPage Entity -->
+    <entity name="BookPage" representedClassName="BookPage" syncable="YES" codeGenerationType="class">
+        <attribute name="id" optional="NO" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="pageNumber" optional="NO" attributeType="Integer 16" defaultValueString="1" usesScalarValueType="YES"/>
+        <attribute name="extractedText" optional="NO" attributeType="String"/>
+        <attribute name="imageFilePath" optional="NO" attributeType="String"/>
+        <attribute name="createdAt" optional="NO" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="isSynced" optional="NO" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <relationship name="book" optional="NO" maxCount="1" deletionRule="Nullify" destinationEntity="Book" inverseName="pages" inverseEntity="Book"/>
+        <relationship name="wordSegments" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="WordSegment" inverseName="page" inverseEntity="WordSegment"/>
+        <relationship name="markedWordsOnPage" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="MarkedWord" inverseName="page" inverseEntity="MarkedWord"/>
+    </entity>
+
+    <!-- WordSegment Entity -->
+    <entity name="WordSegment" representedClassName="WordSegment" syncable="YES" codeGenerationType="class">
+        <attribute name="id" optional="NO" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="word" optional="NO" attributeType="String"/>
+        <attribute name="pinyin" optional="YES" attributeType="String"/>
+        <attribute name="startIndex" optional="NO" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="endIndex" optional="NO" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="isMarked" optional="NO" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <relationship name="page" optional="NO" maxCount="1" deletionRule="Nullify" destinationEntity="BookPage" inverseName="wordSegments" inverseEntity="BookPage"/>
+    </entity>
+
+    <!-- MarkedWord Entity -->
+    <entity name="MarkedWord" representedClassName="MarkedWord" syncable="YES" codeGenerationType="class">
+        <attribute name="id" optional="NO" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="word" optional="NO" attributeType="String"/>
+        <attribute name="readingDate" optional="NO" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="contextSnippet" optional="NO" attributeType="String"/>
+        <attribute name="pageNumber" optional="NO" attributeType="Integer 16" defaultValueString="1" usesScalarValueType="YES"/>
+        <attribute name="isSynced" optional="NO" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="markedCount" optional="NO" attributeType="Integer 16" defaultValueString="1" usesScalarValueType="YES"/>
+        <relationship name="user" optional="NO" maxCount="1" deletionRule="Nullify" destinationEntity="User" inverseName="markedWords" inverseEntity="User"/>
+        <relationship name="book" optional="NO" maxCount="1" deletionRule="Nullify" destinationEntity="Book" inverseName="markedWords" inverseEntity="Book"/>
+        <relationship name="page" optional="NO" maxCount="1" deletionRule="Nullify" destinationEntity="BookPage" inverseName="markedWordsOnPage" inverseEntity="BookPage"/>
+    </entity>
+
+    <!-- UserPreferences Entity -->
+    <entity name="UserPreferences" representedClassName="UserPreferences" syncable="YES" codeGenerationType="class">
+        <attribute name="id" optional="NO" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="fontSize" optional="NO" attributeType="Integer 16" defaultValueString="16" usesScalarValueType="YES"/>
+        <attribute name="isDarkMode" optional="NO" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="language" optional="NO" attributeType="String" defaultValueString="en"/>
+        <attribute name="autoSyncEnabled" optional="NO" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
+        <relationship name="user" optional="NO" maxCount="1" deletionRule="Nullify" destinationEntity="User" inverseName="userPreferences" inverseEntity="User"/>
+    </entity>
+
+    <elements>
+        <element name="User" positionX="-63" positionY="-18" width="128" height="44"/>
+        <element name="Book" positionX="-63" positionY="50" width="128" height="44"/>
+        <element name="BookPage" positionX="-63" positionY="118" width="128" height="44"/>
+        <element name="WordSegment" positionX="-63" positionY="186" width="128" height="44"/>
+        <element name="MarkedWord" positionX="-63" positionY="254" width="128" height="44"/>
+        <element name="UserPreferences" positionX="-63" positionY="322" width="128" height="44"/>
+    </elements>
+</model>
