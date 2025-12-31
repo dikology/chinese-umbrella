@@ -620,7 +620,7 @@ class CoreDataManager {
     static let shared = CoreDataManager()
     
     lazy var persistentContainer: NSPersistentContainer = {
-        let container = NSPersistentContainer(name: "ChineseReaderData")
+        let container = NSPersistentContainer(name: "UmbrellaData")
         container.loadPersistentStores { _, error in
             if let error = error {
                 fatalError("Core Data load error: \(error)")

@@ -28,7 +28,7 @@ class CoreDataManager {
     let container: NSPersistentContainer
 
     init(inMemory: Bool = false) {
-        container = NSPersistentContainer(name: "ChineseReaderData")
+        container = NSPersistentContainer(name: "umbrella")
 
         if inMemory {
             container.persistentStoreDescriptions.first!.url = URL(fileURLWithPath: "/dev/null")

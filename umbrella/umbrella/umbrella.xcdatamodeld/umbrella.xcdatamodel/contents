@@ -10,8 +10,8 @@
         <attribute name="vocabularyMasteryPct" optional="NO" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
         <attribute name="createdAt" optional="NO" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="updatedAt" optional="NO" attributeType="Date" usesScalarValueType="NO"/>
-        <relationship name="books" optional="YES" maxCount="0" deletionRule="Cascade" destinationEntity="Book" inverseName="owner" inverseEntity="Book"/>
-        <relationship name="markedWords" optional="YES" maxCount="0" deletionRule="Cascade" destinationEntity="MarkedWord" inverseName="user" inverseEntity="MarkedWord"/>
+        <relationship name="books" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Book" inverseName="owner" inverseEntity="Book"/>
+        <relationship name="markedWords" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="MarkedWord" inverseName="user" inverseEntity="MarkedWord"/>
         <relationship name="userPreferences" optional="YES" maxCount="1" deletionRule="Cascade" destinationEntity="UserPreferences" inverseName="user" inverseEntity="UserPreferences"/>
     </entity>
 
@@ -24,8 +24,8 @@
         <attribute name="updatedDate" optional="NO" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="isSynced" optional="NO" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
         <relationship name="owner" optional="NO" maxCount="1" deletionRule="Nullify" destinationEntity="User" inverseName="books" inverseEntity="User"/>
-        <relationship name="pages" optional="YES" maxCount="0" deletionRule="Cascade" destinationEntity="BookPage" inverseName="book" inverseEntity="BookPage"/>
-        <relationship name="markedWords" optional="YES" maxCount="0" deletionRule="Cascade" destinationEntity="MarkedWord" inverseName="book" inverseEntity="MarkedWord"/>
+        <relationship name="pages" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="BookPage" inverseName="book" inverseEntity="BookPage"/>
+        <relationship name="markedWords" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="MarkedWord" inverseName="book" inverseEntity="MarkedWord"/>
     </entity>
 
     <!-- BookPage Entity -->
@@ -37,8 +37,8 @@
         <attribute name="createdAt" optional="NO" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="isSynced" optional="NO" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
         <relationship name="book" optional="NO" maxCount="1" deletionRule="Nullify" destinationEntity="Book" inverseName="pages" inverseEntity="Book"/>
-        <relationship name="wordSegments" optional="YES" maxCount="0" deletionRule="Cascade" destinationEntity="WordSegment" inverseName="page" inverseEntity="WordSegment"/>
-        <relationship name="markedWordsOnPage" optional="YES" maxCount="0" deletionRule="Cascade" destinationEntity="MarkedWord" inverseName="page" inverseEntity="MarkedWord"/>
+        <relationship name="wordSegments" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="WordSegment" inverseName="page" inverseEntity="WordSegment"/>
+        <relationship name="markedWordsOnPage" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="MarkedWord" inverseName="page" inverseEntity="MarkedWord"/>
     </entity>
 
     <!-- WordSegment Entity -->
