@@ -6,15 +6,16 @@
 //
 
 import SwiftUI
+import AuthenticationServices
 
 /// Main library screen showing user's book collection
 struct LibraryScreen: View {
-    @StateObject private var viewModel: LibraryViewModel
+    @State private var viewModel: LibraryViewModel
     @State private var showUploadSheet = false
     @State private var searchText = ""
 
     init(viewModel: LibraryViewModel) {
-        _viewModel = StateObject(wrappedValue: viewModel)
+        _viewModel = State(initialValue: viewModel)
     }
 
     var body: some View {
@@ -293,43 +294,14 @@ struct EmptyLibraryView: View {
     }
 }
 
-#Preview {
-    // Mock view model for preview
-    struct MockAuthViewModel: AuthViewModelProtocol {
-        var isAuthenticated = true
-        var currentUser: User? = User(id: UUID(), email: "test@example.com", displayName: "Test User", hskLevel: 1)
-        var isLoading = false
-        var errorMessage: String? = nil
-
-        func signUp(email: String, password: String) async {}
-        func signIn(email: String, password: String) async {}
-        func signInWithApple(credential: ASAuthorizationAppleIDCredential) async {}
-        func logout() {}
-    }
-
-    struct MockBookRepository: BookRepository {
-        func saveBook(_ book: AppBook) async throws -> AppBook { book }
-        func getBook(by id: UUID) async throws -> AppBook? { nil }
-        func getBooks(for userId: UUID) async throws -> [AppBook] { [] }
-        func updateBook(_ book: AppBook) async throws -> AppBook { book }
-        func deleteBook(_ bookId: UUID) async throws {}
-        func searchBooks(query: String, userId: UUID) async throws -> [AppBook] { [] }
-        func getRecentBooks(for userId: UUID, limit: Int) async throws -> [AppBook] { [] }
-        func updateReadingProgress(bookId: UUID, pageIndex: Int) async throws {}
-    }
-
-    let viewModel = LibraryViewModel(
-        bookRepository: MockBookRepository(),
-        authViewModel: MockAuthViewModel()
-    )
-
-    return LibraryScreen(viewModel: viewModel)
-}
+// #Preview {  // Commented out for now - complex preview causing issues
+//     LibraryScreen(viewModel: LibraryViewModel.preview)
+// }
 
 /// Protocol for AuthViewModel (needed for mocking)
 protocol AuthViewModelProtocol {
     var isAuthenticated: Bool { get }
-    var currentUser: User? { get }
+    var currentUser: AppUser? { get }
     var isLoading: Bool { get }
     var errorMessage: String? { get }
 

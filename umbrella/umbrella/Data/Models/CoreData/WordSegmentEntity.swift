@@ -10,7 +10,7 @@ import CoreData
 
 /// Core Data entity for WordSegment
 @objc(WordSegment)
-public class WordSegment: NSManagedObject {
+public class CDWordSegment: NSManagedObject {
     @NSManaged public var id: UUID
     @NSManaged public var word: String
     @NSManaged public var pinyin: String?
@@ -19,16 +19,16 @@ public class WordSegment: NSManagedObject {
     @NSManaged public var isMarked: Bool
 
     // Relationships
-    @NSManaged public var page: BookPage
+    @NSManaged public var page: CDBookPage
 }
 
-extension WordSegment {
-    @nonobjc public class func fetchRequest() -> NSFetchRequest<WordSegment> {
-        return NSFetchRequest<WordSegment>(entityName: "WordSegment")
+extension CDWordSegment {
+    @nonobjc public class func fetchRequest() -> NSFetchRequest<CDWordSegment> {
+        return NSFetchRequest<CDWordSegment>(entityName: "WordSegment")
     }
 
     // Conversion to domain model
-    func toDomain() -> AppWordSegment {
+    public func toDomain() -> AppWordSegment {
         AppWordSegment(
             id: id,
             word: word,

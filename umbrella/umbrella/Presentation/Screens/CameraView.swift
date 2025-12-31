@@ -231,7 +231,8 @@ class CameraViewController: UIViewController, AVCapturePhotoCaptureDelegate {
 
         // Update UI on main thread
         DispatchQueue.main.async {
-            self.updateImageCount()
+            // Note: We need to update the count through the SwiftUI update cycle
+            // The updateUIViewController method will handle updating the label
         }
 
         delegate?.cameraViewController(self, didCapture: image)

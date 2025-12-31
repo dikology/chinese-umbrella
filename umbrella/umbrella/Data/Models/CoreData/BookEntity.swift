@@ -10,7 +10,7 @@ import CoreData
 
 /// Core Data entity for Book
 @objc(Book)
-public class Book: NSManagedObject {
+public class CDBook: NSManagedObject {
     @NSManaged public var id: UUID
     @NSManaged public var title: String
     @NSManaged public var author: String?
@@ -21,20 +21,19 @@ public class Book: NSManagedObject {
     @NSManaged public var isLocal: Bool
 
     // Relationships
-    @NSManaged public var owner: AppUserEntity
-    @NSManaged public var pages: Set<BookPage>
-    @NSManaged public var markedWords: Set<MarkedWord>
+    @NSManaged public var owner: UserEntity
+    @NSManaged public var pages: Set<CDBookPage>
+    @NSManaged public var markedWords: Set<CDMarkedWord>
 }
 
-extension Book {
-    @nonobjc public class func fetchRequest() -> NSFetchRequest<Book> {
-        return NSFetchRequest<Book>(entityName: "Book")
+extension CDBook {
+    @nonobjc public class func fetchRequest() -> NSFetchRequest<CDBook> {
+        return NSFetchRequest<CDBook>(entityName: "Book")
     }
 
     // Computed properties for easier access
-    var pagesArray: [BookPage] {
-        let set = pages as? Set<BookPage> ?? []
-        return set.sorted { $0.pageNumber < $1.pageNumber }
+    var pagesArray: [CDBookPage] {
+        return pages.sorted { $0.pageNumber < $1.pageNumber }
     }
 
     var totalPages: Int {
@@ -51,7 +50,7 @@ extension Book {
     }
 
     // Conversion to domain model
-    func toDomain() -> AppBook {
+    public func toDomain() -> AppBook {
         let pages = pagesArray.map { $0.toDomain() }
         return AppBook(
             id: id,

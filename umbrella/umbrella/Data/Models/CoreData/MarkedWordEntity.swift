@@ -10,7 +10,7 @@ import CoreData
 
 /// Core Data entity for MarkedWord
 @objc(MarkedWord)
-public class MarkedWord: NSManagedObject {
+public class CDMarkedWord: NSManagedObject {
     @NSManaged public var id: UUID
     @NSManaged public var word: String
     @NSManaged public var readingDate: Date
@@ -20,23 +20,25 @@ public class MarkedWord: NSManagedObject {
     @NSManaged public var markedCount: Int16
 
     // Relationships
-    @NSManaged public var user: AppUserEntity
-    @NSManaged public var book: Book
-    @NSManaged public var page: BookPage
+    @NSManaged public var user: UserEntity
+    @NSManaged public var book: CDBook
+    @NSManaged public var page: CDBookPage
 }
 
-extension MarkedWord {
-    @nonobjc public class func fetchRequest() -> NSFetchRequest<MarkedWord> {
-        return NSFetchRequest<MarkedWord>(entityName: "MarkedWord")
+extension CDMarkedWord {
+    @nonobjc public class func fetchRequest() -> NSFetchRequest<CDMarkedWord> {
+        return NSFetchRequest<CDMarkedWord>(entityName: "MarkedWord")
     }
 
     // Conversion to domain model
-    func toDomain() -> AppMarkedWord {
+    public func toDomain() -> AppMarkedWord {
         AppMarkedWord(
             id: id,
+            userId: user.id ?? UUID(), // Handle optional id with fallback
             word: word,
             readingDate: readingDate,
             contextSnippet: contextSnippet,
+            textId: book.id ?? UUID(), // Handle optional id with fallback
             pageNumber: Int(pageNumber),
             markedCount: Int(markedCount)
         )

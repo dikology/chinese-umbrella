@@ -8,14 +8,14 @@
 import Foundation
 
 /// Represents a segmented word with position information in the text
-struct AppWordSegment: Identifiable, Codable, Hashable {
-    let id: UUID
-    let word: String
-    let pinyin: String?
-    let startIndex: Int // Position in page text
-    let endIndex: Int
-    var isMarked: Bool
-    var definition: DictionaryEntry?
+public struct AppWordSegment: Identifiable, Codable, Hashable {
+    public let id: UUID
+    public let word: String
+    public let pinyin: String?
+    public let startIndex: Int // Position in page text
+    public let endIndex: Int
+    public var isMarked: Bool
+    public var definition: DictionaryEntry?
 
     init(
         id: UUID = UUID(),
@@ -57,11 +57,11 @@ struct AppWordSegment: Identifiable, Codable, Hashable {
 
     // MARK: - Hashable
 
-    func hash(into hasher: inout Hasher) {
+    public func hash(into hasher: inout Hasher) {
         hasher.combine(id)
     }
 
-    static func == (lhs: AppWordSegment, rhs: AppWordSegment) -> Bool {
+    public static func == (lhs: AppWordSegment, rhs: AppWordSegment) -> Bool {
         lhs.id == rhs.id
     }
 }

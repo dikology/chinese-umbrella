@@ -21,20 +21,20 @@ class BookRepositoryImpl: BookRepository {
 
         return try await context.perform {
             // Check if book already exists
-            let fetchRequest = Book.fetchRequest()
+            let fetchRequest = CDBook.fetchRequest()
             fetchRequest.predicate = NSPredicate(format: "id == %@", book.id as CVarArg)
             fetchRequest.fetchLimit = 1
 
             let existingBook = try context.fetch(fetchRequest).first
 
-            let bookEntity: Book
+            let bookEntity: CDBook
             if let existingBook = existingBook {
                 // Update existing book
                 existingBook.update(from: book)
                 bookEntity = existingBook
             } else {
                 // Create new book
-                bookEntity = Book(context: context)
+                bookEntity = CDBook(context: context)
                 bookEntity.id = book.id
                 bookEntity.createdDate = book.createdDate
                 bookEntity.update(from: book)
@@ -55,7 +55,7 @@ class BookRepositoryImpl: BookRepository {
         let context = coreDataManager.viewContext
 
         return try await context.perform {
-            let fetchRequest = Book.fetchRequest()
+            let fetchRequest = CDBook.fetchRequest()
             fetchRequest.predicate = NSPredicate(format: "id == %@", id as CVarArg)
             fetchRequest.fetchLimit = 1
 
@@ -68,7 +68,7 @@ class BookRepositoryImpl: BookRepository {
         let context = coreDataManager.viewContext
 
         return try await context.perform {
-            let fetchRequest = Book.fetchRequest()
+            let fetchRequest = CDBook.fetchRequest()
             fetchRequest.predicate = NSPredicate(format: "owner.id == %@", userId as CVarArg)
             fetchRequest.sortDescriptors = [NSSortDescriptor(key: "updatedDate", ascending: false)]
 
@@ -85,7 +85,7 @@ class BookRepositoryImpl: BookRepository {
         let context = coreDataManager.viewContext
 
         try await context.perform {
-            let fetchRequest = Book.fetchRequest()
+            let fetchRequest = CDBook.fetchRequest()
             fetchRequest.predicate = NSPredicate(format: "id == %@", bookId as CVarArg)
             fetchRequest.fetchLimit = 1
 
@@ -100,7 +100,7 @@ class BookRepositoryImpl: BookRepository {
         let context = coreDataManager.viewContext
 
         return try await context.perform {
-            let fetchRequest = Book.fetchRequest()
+            let fetchRequest = CDBook.fetchRequest()
             let userPredicate = NSPredicate(format: "owner.id == %@", userId as CVarArg)
             let titlePredicate = NSPredicate(format: "title CONTAINS[cd] %@", query)
             let authorPredicate = NSPredicate(format: "author CONTAINS[cd] %@", query)
@@ -117,7 +117,7 @@ class BookRepositoryImpl: BookRepository {
         let context = coreDataManager.viewContext
 
         return try await context.perform {
-            let fetchRequest = Book.fetchRequest()
+            let fetchRequest = CDBook.fetchRequest()
             fetchRequest.predicate = NSPredicate(format: "owner.id == %@", userId as CVarArg)
             fetchRequest.sortDescriptors = [NSSortDescriptor(key: "updatedDate", ascending: false)]
             fetchRequest.fetchLimit = limit
@@ -131,7 +131,7 @@ class BookRepositoryImpl: BookRepository {
         let context = coreDataManager.viewContext
 
         try await context.perform {
-            let fetchRequest = Book.fetchRequest()
+            let fetchRequest = CDBook.fetchRequest()
             fetchRequest.predicate = NSPredicate(format: "id == %@", bookId as CVarArg)
             fetchRequest.fetchLimit = 1
 
@@ -145,17 +145,15 @@ class BookRepositoryImpl: BookRepository {
 
     // MARK: - Private Methods
 
-    private func savePages(_ pages: [AppBookPage], for bookEntity: Book, in context: NSManagedObjectContext) throws {
+    private func savePages(_ pages: [AppBookPage], for bookEntity: CDBook, in context: NSManagedObjectContext) throws {
         // Remove existing pages
-        if let existingPages = bookEntity.pages as? Set<BookPage> {
-            for page in existingPages {
-                context.delete(page)
-            }
+        for page in bookEntity.pages {
+            context.delete(page)
         }
 
         // Create new pages
         for page in pages {
-            let pageEntity = BookPage(context: context)
+            let pageEntity = CDBookPage(context: context)
             pageEntity.id = page.id
             pageEntity.book = bookEntity
             pageEntity.createdAt = Date()
@@ -166,9 +164,9 @@ class BookRepositoryImpl: BookRepository {
         }
     }
 
-    private func saveWordSegments(_ segments: [AppWordSegment], for pageEntity: BookPage, in context: NSManagedObjectContext) throws {
+    private func saveWordSegments(_ segments: [AppWordSegment], for pageEntity: CDBookPage, in context: NSManagedObjectContext) throws {
         for segment in segments {
-            let segmentEntity = WordSegment(context: context)
+            let segmentEntity = CDWordSegment(context: context)
             segmentEntity.id = segment.id
             segmentEntity.page = pageEntity
             segmentEntity.update(from: segment)

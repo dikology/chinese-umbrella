@@ -10,7 +10,7 @@ import CoreData
 
 /// Core Data entity for BookPage
 @objc(BookPage)
-public class BookPage: NSManagedObject {
+public class CDBookPage: NSManagedObject {
     @NSManaged public var id: UUID
     @NSManaged public var pageNumber: Int16
     @NSManaged public var extractedText: String
@@ -19,25 +19,23 @@ public class BookPage: NSManagedObject {
     @NSManaged public var isSynced: Bool
 
     // Relationships
-    @NSManaged public var book: Book
-    @NSManaged public var wordSegments: Set<WordSegment>
-    @NSManaged public var markedWordsOnPage: Set<MarkedWord>
+    @NSManaged public var book: CDBook
+    @NSManaged public var wordSegments: Set<CDWordSegment>
+    @NSManaged public var markedWordsOnPage: Set<CDMarkedWord>
 }
 
-extension BookPage {
-    @nonobjc public class func fetchRequest() -> NSFetchRequest<BookPage> {
-        return NSFetchRequest<BookPage>(entityName: "BookPage")
+extension CDBookPage {
+    @nonobjc public class func fetchRequest() -> NSFetchRequest<CDBookPage> {
+        return NSFetchRequest<CDBookPage>(entityName: "BookPage")
     }
 
     // Computed properties
-    var wordSegmentsArray: [WordSegment] {
-        let set = wordSegments as? Set<WordSegment> ?? []
-        return set.sorted { $0.startIndex < $1.startIndex }
+    var wordSegmentsArray: [CDWordSegment] {
+        return wordSegments.sorted { $0.startIndex < $1.startIndex }
     }
 
-    var markedWordsArray: [MarkedWord] {
-        let set = markedWordsOnPage as? Set<MarkedWord> ?? []
-        return Array(set)
+    var markedWordsArray: [CDMarkedWord] {
+        return Array(markedWordsOnPage)
     }
 
     var markedWordsCount: Int {
@@ -49,7 +47,7 @@ extension BookPage {
     }
 
     // Conversion to domain model
-    func toDomain() -> AppBookPage {
+    public func toDomain() -> AppBookPage {
         let words = wordSegmentsArray.map { $0.toDomain() }
         return AppBookPage(
             id: id,

@@ -109,7 +109,7 @@ final class LibraryViewModel {
             filteredBooks = books
         case .local:
             filteredBooks = books.filter { $0.isLocal }
-        case .public:
+        case .publicLibrary:
             filteredBooks = books.filter { !$0.isLocal }
         case .recent:
             // Get books read in the last 7 days
@@ -145,7 +145,7 @@ final class LibraryViewModel {
                 return "No books yet. Upload your first book to get started!"
             case .local:
                 return "No uploaded books yet. Use the camera or photo library to add books."
-            case .public:
+            case .publicLibrary:
                 return "No public library books available yet."
             case .recent:
                 return "No recently read books."
@@ -181,7 +181,7 @@ final class LibraryViewModel {
 enum BookFilter: String, CaseIterable {
     case all = "All Books"
     case local = "My Books"
-    case public = "Public Library"
+    case publicLibrary = "Public Library"
     case recent = "Recent"
     case completed = "Completed"
 
@@ -189,7 +189,7 @@ enum BookFilter: String, CaseIterable {
         switch self {
         case .all: return "books.vertical"
         case .local: return "camera"
-        case .public: return "globe"
+        case .publicLibrary: return "globe"
         case .recent: return "clock"
         case .completed: return "checkmark.circle"
         }

@@ -8,14 +8,14 @@
 import Foundation
 
 /// Represents a single page of a book with OCR text and word segmentation
-struct AppBookPage: Identifiable, Codable, Hashable {
-    let id: UUID
-    let bookId: UUID
-    let pageNumber: Int
-    let originalImagePath: String // Local file path to original image
-    let extractedText: String
-    let words: [AppWordSegment] // Segmented words with positions
-    let wordsMarked: Set<String> // User-marked words on this page
+public struct AppBookPage: Identifiable, Codable, Hashable {
+    public let id: UUID
+    public let bookId: UUID
+    public let pageNumber: Int
+    public let originalImagePath: String // Local file path to original image
+    public let extractedText: String
+    public let words: [AppWordSegment] // Segmented words with positions
+    public let wordsMarked: Set<String> // User-marked words on this page
 
     init(
         id: UUID = UUID(),
@@ -71,11 +71,11 @@ struct AppBookPage: Identifiable, Codable, Hashable {
 
     // MARK: - Hashable
 
-    func hash(into hasher: inout Hasher) {
+    public func hash(into hasher: inout Hasher) {
         hasher.combine(id)
     }
 
-    static func == (lhs: AppBookPage, rhs: AppBookPage) -> Bool {
+    public static func == (lhs: AppBookPage, rhs: AppBookPage) -> Bool {
         lhs.id == rhs.id
     }
 }

@@ -8,13 +8,13 @@
 import Foundation
 
 /// Represents a dictionary entry for a Chinese word/character
-struct DictionaryEntry: Codable, Hashable {
-    let simplified: String
-    let traditional: String
-    let pinyin: String
-    let englishDefinition: String
-    let frequency: HSKLevel?
-    let examples: [String]
+public struct DictionaryEntry: Codable, Hashable {
+    public let simplified: String
+    public let traditional: String
+    public let pinyin: String
+    public let englishDefinition: String
+    public let frequency: HSKLevel?
+    public let examples: [String]
 
     init(
         simplified: String,
@@ -50,7 +50,7 @@ struct DictionaryEntry: Codable, Hashable {
 }
 
 /// HSK proficiency levels (1-6, plus beyond)
-enum HSKLevel: Int, Codable, CaseIterable {
+public enum HSKLevel: Int, Codable, CaseIterable {
     case hsk1 = 1
     case hsk2 = 2
     case hsk3 = 3

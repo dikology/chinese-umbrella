@@ -9,7 +9,7 @@ import SwiftUI
 
 /// Screen showing OCR processing progress for book pages
 struct OCRProgressScreen: View {
-    @ObservedObject var viewModel: OCRProgressViewModel
+    @State var viewModel: OCRProgressViewModel
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -253,7 +253,7 @@ struct PageProgressRow: View {
 
 /// ViewModel for OCR progress screen
 @Observable
-final class OCRProgressViewModel: ObservableObject {
+final class OCRProgressViewModel {
     private let bookUploadUseCase: BookUploadUseCase
     private let images: [UIImage]
     private let bookTitle: String

@@ -9,7 +9,7 @@ import SwiftUI
 
 /// Screen for uploading books with camera and photo picker options
 struct BookUploadScreen: View {
-    @StateObject private var viewModel: BookUploadViewModel
+    @State private var viewModel: BookUploadViewModel
     @Environment(\.dismiss) private var dismiss
 
     // Navigation state
@@ -18,7 +18,7 @@ struct BookUploadScreen: View {
     @State private var showPhotoReview = false
 
     init(bookUploadUseCase: BookUploadUseCase) {
-        _viewModel = StateObject(wrappedValue: BookUploadViewModel(bookUploadUseCase: bookUploadUseCase))
+        _viewModel = State(initialValue: BookUploadViewModel(bookUploadUseCase: bookUploadUseCase))
     }
 
     var body: some View {

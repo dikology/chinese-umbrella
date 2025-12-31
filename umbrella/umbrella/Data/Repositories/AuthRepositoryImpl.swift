@@ -94,14 +94,22 @@ class AuthRepositoryImpl: AuthRepository {
     /// Get current authenticated user (Phase 1: return first user)
     func getCurrentUser() async throws -> AppUser? {
         try await coreDataManager.performBackgroundTask { context in
-            let request: NSFetchRequest<AppUserEntity> = AppUserEntity.fetchRequest()
+            let request = UserEntity.fetchRequest()
             request.fetchLimit = 1
 
-            guard let userEntity = try context.fetch(request).first else {
+            do {
+                let fetchedObjects = try context.fetch(request)
+                guard let firstObject = fetchedObjects.first,
+                      let userEntity = firstObject as? UserEntity else {
+                    return nil
+                }
+                return AppUser.fromEntity(userEntity)
+            } catch {
+                // Handle case where existing data doesn't match current class structure
+                // This can happen during development when schema changes
+                print("Warning: Could not fetch user entities: \(error)")
                 return nil
             }
-
-            return AppUser.fromEntity(userEntity)
         }
     }
 
@@ -114,10 +122,12 @@ class AuthRepositoryImpl: AuthRepository {
     /// Update user profile
     func updateUser(_ user: AppUser) async throws -> AppUser {
         try await coreDataManager.performBackgroundTask { context in
-            let request: NSFetchRequest<AppUserEntity> = AppUserEntity.fetchRequest()
+            let request = UserEntity.fetchRequest()
             request.predicate = NSPredicate(format: "id == %@", user.id as CVarArg)
 
-            guard let userEntity = try context.fetch(request).first else {
+            let fetchedObjects = try context.fetch(request)
+            guard let firstObject = fetchedObjects.first,
+                  let userEntity = firstObject as? UserEntity else {
                 throw AuthError.userNotFound
             }
 
@@ -131,10 +141,12 @@ class AuthRepositoryImpl: AuthRepository {
     /// Delete user account
     func deleteUser(_ userId: UUID) async throws {
         try await coreDataManager.performBackgroundTask { context in
-            let request: NSFetchRequest<AppUserEntity> = AppUserEntity.fetchRequest()
+            let request = UserEntity.fetchRequest()
             request.predicate = NSPredicate(format: "id == %@", userId as CVarArg)
 
-            guard let userEntity = try context.fetch(request).first else {
+            let fetchedObjects = try context.fetch(request)
+            guard let firstObject = fetchedObjects.first,
+                  let userEntity = firstObject as? UserEntity else {
                 throw AuthError.userNotFound
             }
 
@@ -147,7 +159,7 @@ class AuthRepositoryImpl: AuthRepository {
 
     private func userExists(email: String) async throws -> Bool {
         try await coreDataManager.performBackgroundTask { context in
-            let request: NSFetchRequest<AppUserEntity> = AppUserEntity.fetchRequest()
+            let request = UserEntity.fetchRequest()
             request.predicate = NSPredicate(format: "email == %@", email)
             request.fetchLimit = 1
 
@@ -158,10 +170,11 @@ class AuthRepositoryImpl: AuthRepository {
 
     private func findUserByEmail(_ email: String) async throws -> AppUser? {
         try await coreDataManager.performBackgroundTask { context in
-            let request: NSFetchRequest<AppUserEntity> = AppUserEntity.fetchRequest()
+            let request = UserEntity.fetchRequest()
             request.predicate = NSPredicate(format: "email == %@", email)
 
-            guard let userEntity = try context.fetch(request).first else {
+            let fetchedObjects = try context.fetch(request)
+            guard let userEntity = fetchedObjects.first as? UserEntity else {
                 return nil
             }
 
@@ -171,7 +184,7 @@ class AuthRepositoryImpl: AuthRepository {
 
     private func saveUserToCoreData(_ user: AppUser) async throws {
         try await coreDataManager.performBackgroundTask { context in
-            let userEntity = AppUserEntity(context: context)
+            let userEntity = UserEntity(context: context)
             userEntity.update(from: user)
             try context.save()
         }
@@ -192,10 +205,11 @@ class AuthRepositoryImpl: AuthRepository {
 
     private func findUserByAppleId(_ appleUserId: String) async throws -> AppUser? {
         try await coreDataManager.performBackgroundTask { context in
-            let request: NSFetchRequest<AppUserEntity> = AppUserEntity.fetchRequest()
+            let request = UserEntity.fetchRequest()
             request.predicate = NSPredicate(format: "appleUserId == %@", appleUserId)
 
-            guard let userEntity = try context.fetch(request).first else {
+            let fetchedObjects = try context.fetch(request)
+            guard let userEntity = fetchedObjects.first as? UserEntity else {
                 return nil
             }
 
@@ -205,7 +219,7 @@ class AuthRepositoryImpl: AuthRepository {
 
     private func saveUserWithAppleId(_ user: AppUser, appleUserId: String) async throws {
         try await coreDataManager.performBackgroundTask { context in
-            let userEntity = AppUserEntity(context: context)
+            let userEntity = UserEntity(context: context)
             userEntity.update(from: user)
             userEntity.appleUserId = appleUserId
             try context.save()

@@ -137,7 +137,7 @@ class DefaultBookUploadUseCase: BookUploadUseCase {
         let filename = "\(UUID().uuidString).jpg"
 
         // Save processed image
-        let savedPath = try imageProcessingService.saveImageToStorage(processedImage, filename: filename)
+        let _ = try imageProcessingService.saveImageToStorage(processedImage, filename: filename)
 
         return ProcessedImage(
             originalImage: image,
@@ -175,7 +175,7 @@ class DefaultBookUploadUseCase: BookUploadUseCase {
     // MARK: - Private Methods
 
     private func segmentText(_ text: String) async throws -> [AppWordSegment] {
-        let words = textSegmentationService.segment(text: text)
+        let words = try await textSegmentationService.segment(text: text)
         return words.enumerated().map { index, word in
             AppWordSegment(
                 word: word,
