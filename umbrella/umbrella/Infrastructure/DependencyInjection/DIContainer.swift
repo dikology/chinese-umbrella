@@ -17,10 +17,12 @@ struct DIContainer {
 
     // Use Cases
     static let authUseCase = AuthUseCase(repository: authRepository, keychainService: keychainService)
+    static let bookMetadataService = DefaultBookMetadataService()
     static let bookUploadUseCase = DefaultBookUploadUseCase(
         ocrService: ocrService,
         imageProcessingService: imageProcessingService,
         textSegmentationService: textSegmentationService,
+        bookMetadataService: bookMetadataService,
         bookRepository: bookRepository
     )
     // static let readingUseCase = ReadingUseCase(repository: readingProgressRepository, dictionaryRepository: dictionaryRepository)

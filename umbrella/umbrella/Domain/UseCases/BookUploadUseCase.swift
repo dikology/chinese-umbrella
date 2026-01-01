@@ -38,17 +38,20 @@ class DefaultBookUploadUseCase: BookUploadUseCase {
     private let ocrService: OCRService
     private let imageProcessingService: ImageProcessingService
     private let textSegmentationService: TextSegmentationService
+    private let bookMetadataService: BookMetadataService
     private let bookRepository: BookRepository
 
     init(
         ocrService: OCRService,
         imageProcessingService: ImageProcessingService,
         textSegmentationService: TextSegmentationService,
+        bookMetadataService: BookMetadataService,
         bookRepository: BookRepository
     ) {
         self.ocrService = ocrService
         self.imageProcessingService = imageProcessingService
         self.textSegmentationService = textSegmentationService
+        self.bookMetadataService = bookMetadataService
         self.bookRepository = bookRepository
     }
 
@@ -102,7 +105,14 @@ class DefaultBookUploadUseCase: BookUploadUseCase {
             pages.append(page)
         }
 
-        // Create the book
+        // Analyze book metadata using the metadata service
+        let metadataAnalysis = try await bookMetadataService.analyzeBookMetadata(
+            images: images,
+            title: actualTitle,
+            author: author
+        )
+
+        // Create the book with enhanced metadata
         let book = AppBook(
             title: actualTitle,
             author: author,
@@ -111,8 +121,11 @@ class DefaultBookUploadUseCase: BookUploadUseCase {
             isLocal: true
         )
 
+        // Apply metadata analysis results
+        let enhancedBook = bookMetadataService.updateBookMetadata(book: book, analysis: metadataAnalysis)
+
         // Save to repository
-        let savedBook = try await bookRepository.saveBook(book, userId: userId)
+        let savedBook = try await bookRepository.saveBook(enhancedBook, userId: userId)
         return savedBook
     }
 
