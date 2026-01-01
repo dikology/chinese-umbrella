@@ -53,6 +53,7 @@ struct BookRepositoryTests {
         )
     }
 
+    @MainActor
     private func createTestUser() async throws -> UserEntity {
         let context = coreDataManager.viewContext
         let user = UserEntity(context: context)
@@ -90,7 +91,7 @@ struct BookRepositoryTests {
     @MainActor
     @Test func testGetBook_byId_returnsCorrectBook() async throws {
         // Given
-        let user = try await createTestUser()
+        let _ = try await createTestUser()
         let book = createTestBook()
         let savedBook = try await repository.saveBook(book, userId: userId)
 
@@ -139,7 +140,7 @@ struct BookRepositoryTests {
     @MainActor
     @Test func testUpdateBook_modifiesExistingBook() async throws {
         // Given
-        let user = try await createTestUser()
+        let _ = try await createTestUser()
         let originalBook = createTestBook(title: "Original Title")
         let savedBook = try await repository.saveBook(originalBook, userId: userId)
 
@@ -173,7 +174,7 @@ struct BookRepositoryTests {
     @MainActor
     @Test func testDeleteBook_removesBookFromStorage() async throws {
         // Given
-        let user = try await createTestUser()
+        let _ = try await createTestUser()
         let book = createTestBook()
         let savedBook = try await repository.saveBook(book, userId: userId)
 
@@ -194,7 +195,7 @@ struct BookRepositoryTests {
     @MainActor
     @Test func testSearchBooks_byTitle_returnsMatchingBooks() async throws {
         // Given
-        let user = try await createTestUser()
+        let _ = try await createTestUser()
         let book1 = createTestBook(title: "Chinese Literature")
         let book2 = createTestBook(title: "English Grammar")
 
@@ -212,7 +213,7 @@ struct BookRepositoryTests {
     @MainActor
     @Test func testSearchBooksWithFilters_byGenre_returnsFilteredBooks() async throws {
         // Given
-        let user = try await createTestUser()
+        let _ = try await createTestUser()
         let book1 = createTestBook(title: "Literature Book", genre: .literature)
         let book2 = createTestBook(title: "Science Book", genre: .science)
 
@@ -232,7 +233,7 @@ struct BookRepositoryTests {
     @MainActor
     @Test func testSearchBooksWithFilters_byLanguage_returnsFilteredBooks() async throws {
         // Given
-        let user = try await createTestUser()
+        let _ = try await createTestUser()
         let book1 = createTestBook(title: "Chinese Book", language: "zh-Hans")
         let book2 = createTestBook(title: "English Book", language: "en")
 
@@ -252,7 +253,7 @@ struct BookRepositoryTests {
     @MainActor
     @Test func testGetBooksByGenre_returnsCorrectBooks() async throws {
         // Given
-        let user = try await createTestUser()
+        let _ = try await createTestUser()
         let book1 = createTestBook(title: "Lit Book 1", genre: .literature)
         let book2 = createTestBook(title: "Lit Book 2", genre: .literature)
         let book3 = createTestBook(title: "Sci Book", genre: .science)
@@ -272,7 +273,7 @@ struct BookRepositoryTests {
     @MainActor
     @Test func testGetBooksByLanguage_returnsCorrectBooks() async throws {
         // Given
-        let user = try await createTestUser()
+        let _ = try await createTestUser()
         let book1 = createTestBook(title: "Chinese Book 1", language: "zh-Hans")
         let book2 = createTestBook(title: "Chinese Book 2", language: "zh-Hans")
         let book3 = createTestBook(title: "English Book", language: "en")
@@ -292,7 +293,7 @@ struct BookRepositoryTests {
     @MainActor
     @Test func testGetBooksByProgressStatus_completedBooks() async throws {
         // Given
-        let user = try await createTestUser()
+        let _ = try await createTestUser()
 
         // Create a completed book (current page = total pages)
         let completedBook = AppBook(
@@ -335,7 +336,7 @@ struct BookRepositoryTests {
     @MainActor
     @Test func testGetRecentBooks_returnsMostRecentFirst() async throws {
         // Given
-        let user = try await createTestUser()
+        let _ = try await createTestUser()
 
         // Create books with different update dates
         var book1 = createTestBook(title: "Book 1")
@@ -363,7 +364,7 @@ struct BookRepositoryTests {
     @MainActor
     @Test func testGetLibraryStatistics_calculatesCorrectStats() async throws {
         // Given
-        let user = try await createTestUser()
+        let _ = try await createTestUser()
 
         let book1 = createTestBook(title: "Book 1", genre: .literature, totalWords: 1000)
         let book2 = createTestBook(title: "Book 2", genre: .science, totalWords: 2000)

@@ -138,7 +138,7 @@ struct umbrellaTests {
             ("UserPreferences", UserPreferences.self)
         ]
 
-        for (entityName, entityType) in entitiesToTest {
+        for (entityName, _) in entitiesToTest {
             let fetchRequest = NSFetchRequest<NSManagedObject>(entityName: entityName)
             fetchRequest.fetchLimit = 1
 
