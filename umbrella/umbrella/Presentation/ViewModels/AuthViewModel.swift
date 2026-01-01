@@ -9,7 +9,7 @@ import Foundation
 import AuthenticationServices
 
 @Observable
-final class AuthViewModel {
+final class AuthViewModel: AuthViewModelProtocol {
     // MARK: - Published Properties
     var isAuthenticated = false
     var currentUser: AppUser?

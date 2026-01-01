@@ -9,10 +9,15 @@ import SwiftUI
 
 /// Reading screen for displaying book pages with interactive word segmentation
 struct ReadingScreen: View {
+    @Environment(\.colorScheme) private var colorScheme
     @State private var viewModel: ReadingViewModel
     @State private var showingDictionaryPopup = false
 
     private let book: AppBook
+
+    private var colors: AdaptiveColors {
+        AdaptiveColors(colorScheme: colorScheme)
+    }
 
     init(book: AppBook) {
         self.book = book
@@ -36,8 +41,7 @@ struct ReadingScreen: View {
                             } else if let page = viewModel.currentPage {
                                 // Page title
                                 Text("Page \(page.pageNumber)")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
+                                    .captionStyle()
                                     .padding(.bottom, 8)
 
                                 // Segmented text content
@@ -45,23 +49,24 @@ struct ReadingScreen: View {
 
                                 // Page separator
                                 Divider()
+                                    .background(colors.divider)
                                     .padding(.vertical, 16)
 
                                 // Navigation hint
                                 if !viewModel.isLastPage {
                                     Text("Scroll down for next page")
-                                        .font(.caption2)
-                                        .foregroundColor(.gray)
+                                        .captionSmallStyle()
                                 }
                             } else {
                                 Text("No page loaded")
-                                    .foregroundColor(.gray)
+                                    .bodySecondaryStyle()
                             }
                         }
                         .padding(.horizontal, 20)
                         .padding(.vertical, 16)
                     }
                 }
+                .background(colors.background)
 
                 // Dictionary popup overlay
                 if showingDictionaryPopup, let selectedWord = viewModel.selectedWord {
@@ -98,7 +103,7 @@ struct ReadingScreen: View {
                 Task { await viewModel.previousPage() }
             }) {
                 Image(systemName: "chevron.left")
-                    .foregroundColor(viewModel.canGoPrevious ? .primary : .gray)
+                    .foregroundColor(viewModel.canGoPrevious ? colors.primary : colors.textSecondary)
             }
             .disabled(!viewModel.canGoPrevious)
 
@@ -106,10 +111,9 @@ struct ReadingScreen: View {
 
             VStack(spacing: 2) {
                 Text("\(viewModel.currentPageIndex + 1) of \(viewModel.totalPages)")
-                    .font(.caption)
-                    .foregroundColor(.gray)
+                    .captionStyle()
                 Text("Page \(viewModel.currentPageNumber)")
-                    .font(.subheadline)
+                    .bodySecondaryStyle()
                     .fontWeight(.medium)
             }
 
@@ -119,13 +123,13 @@ struct ReadingScreen: View {
                 Task { await viewModel.nextPage() }
             }) {
                 Image(systemName: "chevron.right")
-                    .foregroundColor(viewModel.canGoNext ? .primary : .gray)
+                    .foregroundColor(viewModel.canGoNext ? colors.primary : colors.textSecondary)
             }
             .disabled(!viewModel.canGoNext)
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
-        .background(Color(.systemBackground).opacity(0.9))
+        .background(colors.surface.opacity(0.9))
     }
 
     private var progressIndicator: some View {
@@ -133,16 +137,18 @@ struct ReadingScreen: View {
             ProgressView(value: viewModel.readingProgress)
                 .progressViewStyle(.linear)
                 .frame(width: 60)
+                .tint(colors.primary)
+                .background(colors.progressTrack)
+                .cornerRadius(2)
             Text("\(Int(viewModel.readingProgress * 100))%")
-                .font(.caption2)
-                .foregroundColor(.gray)
+                .captionSmallStyle()
         }
     }
 
     private func segmentedTextView(for page: AppBookPage) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 16) {
             // Display segmented words as interactive buttons
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 40), spacing: 2)], spacing: 8) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 28), spacing: 1)], spacing: 12) {
                 ForEach(viewModel.segmentedWords) { wordSegment in
                     WordButton(
                         wordSegment: wordSegment,
@@ -168,74 +174,74 @@ struct ReadingScreen: View {
                 VStack(spacing: 0) {
                     Spacer()
 
-                    VStack(spacing: 16) {
-                        // Word display
-                        VStack(spacing: 8) {
-                            Text(wordSegment.word)
-                                .font(.title)
-                                .fontWeight(.bold)
+                    CardContainer(padding: EdgeInsets(top: 24, leading: 24, bottom: 24, trailing: 24)) {
+                        VStack(spacing: 16) {
+                            // Word display
+                            VStack(spacing: 8) {
+                                Text(wordSegment.word)
+                                    .titleStyle()
+                                    .fontWeight(.bold)
 
-                            if let pinyin = wordSegment.pinyin {
-                                Text(pinyin)
-                                    .font(.title2)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-
-                        // Dictionary entry
-                        if let entry = viewModel.dictionaryEntry {
-                            VStack(spacing: 12) {
-                                Text(entry.englishDefinition)
-                                    .font(.body)
-                                    .multilineTextAlignment(.center)
-                                    .padding(.horizontal)
-
-                                if let frequency = entry.frequency {
-                                    Text("HSK Level \(frequency.rawValue)")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
+                                if let pinyin = wordSegment.pinyin {
+                                    Text(pinyin)
+                                        .headingStyle()
+                                        .foregroundColor(colors.textSecondary)
                                 }
                             }
-                        } else {
-                            Text("Definition not found")
-                                .font(.body)
-                                .foregroundColor(.secondary)
-                        }
 
-                        // Action buttons
-                        HStack(spacing: 20) {
-                            Button(action: {
-                                Task {
-                                    await viewModel.markWordAsDifficult(wordSegment.word)
+                            // Dictionary entry
+                            if let entry = viewModel.dictionaryEntry {
+                                VStack(spacing: 12) {
+                                    Text(entry.englishDefinition)
+                                        .bodyStyle()
+                                        .multilineTextAlignment(.center)
+                                        .padding(.horizontal)
+
+                                    if let frequency = entry.frequency {
+                                        Text("HSK Level \(frequency.rawValue)")
+                                            .captionStyle()
+                                            .foregroundColor(colors.textSecondary)
+                                    }
+                                }
+                            } else {
+                                Text("Definition not found")
+                                    .bodyStyle()
+                                    .foregroundColor(colors.textSecondary)
+                            }
+
+                            // Action buttons
+                            HStack(spacing: 20) {
+                                Button(action: {
+                                    Task {
+                                        await viewModel.markWordAsDifficult(wordSegment.word)
+                                        showingDictionaryPopup = false
+                                    }
+                                }) {
+                                    VStack(spacing: 4) {
+                                        Image(systemName: viewModel.isWordMarked(wordSegment.word) ? "star.fill" : "star")
+                                            .foregroundColor(.yellow)
+                                        Text("Mark")
+                                            .captionStyle()
+                                    }
+                                }
+
+                                Button(action: {
+                                    viewModel.deselectWord()
                                     showingDictionaryPopup = false
-                                }
-                            }) {
-                                VStack(spacing: 4) {
-                                    Image(systemName: viewModel.isWordMarked(wordSegment.word) ? "star.fill" : "star")
-                                        .foregroundColor(.yellow)
-                                    Text("Mark")
-                                        .font(.caption)
-                                }
-                            }
-
-                            Button(action: {
-                                viewModel.deselectWord()
-                                showingDictionaryPopup = false
-                            }) {
-                                VStack(spacing: 4) {
-                                    Image(systemName: "xmark")
-                                        .foregroundColor(.gray)
-                                    Text("Close")
-                                        .font(.caption)
+                                }) {
+                                    VStack(spacing: 4) {
+                                        Image(systemName: "xmark")
+                                            .foregroundColor(colors.textSecondary)
+                                        Text("Close")
+                                            .captionStyle()
+                                    }
                                 }
                             }
+                            .padding(.top, 8)
                         }
-                        .padding(.top, 8)
                     }
-                    .padding(24)
-                    .background(Color(.systemBackground))
                     .cornerRadius(16)
-                    .shadow(radius: 8)
+                    .shadow(color: colors.shadow, radius: 8, x: 0, y: 4)
                     .padding(.horizontal, 20)
                     .padding(.bottom, 40)
 
@@ -252,18 +258,24 @@ struct ReadingScreen: View {
 // MARK: - Supporting Views
 
 struct WordButton: View {
+    @Environment(\.colorScheme) private var colorScheme
+
     let wordSegment: AppWordSegment
     let isSelected: Bool
     let isMarked: Bool
     let action: () -> Void
 
+    private var colors: AdaptiveColors {
+        AdaptiveColors(colorScheme: colorScheme)
+    }
+
     var body: some View {
         Button(action: action) {
             Text(wordSegment.word)
-                .font(.system(size: 16))
+                .font(.body)
                 .foregroundColor(textColor)
-                .padding(.horizontal, 4)
-                .padding(.vertical, 2)
+                .padding(.horizontal, 3)
+                .padding(.vertical, 4)
                 .background(
                     RoundedRectangle(cornerRadius: 4)
                         .fill(backgroundColor)
@@ -280,24 +292,24 @@ struct WordButton: View {
         if isSelected {
             return .white
         } else if isMarked {
-            return .orange
+            return colors.warning
         } else {
-            return .primary
+            return colors.textPrimary
         }
     }
 
     private var backgroundColor: Color {
         if isSelected {
-            return .blue
+            return colors.primary
         } else if isMarked {
-            return .orange.opacity(0.1)
+            return colors.orangeTint
         } else {
             return .clear
         }
     }
 
     private var selectionColor: Color {
-        isSelected ? .blue : .clear
+        isSelected ? colors.primary : .clear
     }
 }
 
