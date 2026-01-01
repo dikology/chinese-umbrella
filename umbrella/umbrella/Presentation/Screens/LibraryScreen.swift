@@ -13,6 +13,7 @@ struct LibraryScreen: View {
     @State private var viewModel: LibraryViewModel
     @State private var showUploadSheet = false
     @State private var searchText = ""
+    @State private var selectedBook: AppBook?
 
     init(viewModel: LibraryViewModel) {
         _viewModel = State(initialValue: viewModel)
@@ -106,7 +107,7 @@ struct LibraryScreen: View {
                                 BookListRow(
                                     book: book,
                                     onSelect: {
-                                        viewModel.selectBook(book)
+                                        selectedBook = book
                                     },
                                     onDelete: {
                                         viewModel.showDeleteConfirmation(for: book)
@@ -153,6 +154,9 @@ struct LibraryScreen: View {
                 Task {
                     await viewModel.loadBooks()
                 }
+            }
+            .navigationDestination(item: $selectedBook) { book in
+                ReadingScreen(book: book)
             }
         }
     }
