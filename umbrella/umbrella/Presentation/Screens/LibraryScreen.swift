@@ -13,6 +13,8 @@ struct LibraryScreen: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var viewModel: LibraryViewModel
     @State private var showUploadSheet = false
+    @State private var showEditSheet = false
+    @State private var bookToEdit: AppBook?
     @State private var searchText = ""
     @State private var selectedBook: AppBook?
 
@@ -108,23 +110,36 @@ struct LibraryScreen: View {
 
                 // Book list or empty state
                 if viewModel.hasBooks {
-                    ScrollView {
-                        LazyVStack(spacing: 12) {
-                            ForEach(viewModel.displayBooks) { book in
-                                BookListRow(
-                                    book: book,
-                                    onSelect: {
-                                        selectedBook = book
-                                    },
-                                    onDelete: {
-                                        viewModel.showDeleteConfirmation(for: book)
-                                    }
-                                )
+                    List(viewModel.displayBooks) { book in
+                        BookListRow(
+                            book: book,
+                            onSelect: {
+                                selectedBook = book
+                            }
+                        )
+                        .listRowInsets(EdgeInsets())
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .swipeActions(edge: .leading) {
+                            Button(action: {
+                                bookToEdit = book
+                                showEditSheet = true
+                            }) {
+                                Label("Edit", systemImage: "pencil")
+                            }
+                            .tint(colors.primary)
+                        }
+                        .swipeActions(edge: .trailing) {
+                            Button(role: .destructive, action: {
+                                viewModel.showDeleteConfirmation(for: book)
+                            }) {
+                                Label("Delete", systemImage: "trash")
                             }
                         }
-                        .padding(.horizontal)
-                        .padding(.vertical, 8)
                     }
+                    .listStyle(.plain)
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
                 } else {
                     EmptyLibraryView(message: viewModel.emptyStateMessage)
                 }
@@ -138,6 +153,19 @@ struct LibraryScreen: View {
                         bookUploadUseCase: DIContainer.bookUploadUseCase,
                         userId: userId,
                         onBookUploaded: {
+                            Task {
+                                await viewModel.loadBooks()
+                            }
+                        }
+                    )
+                }
+            }
+            .sheet(isPresented: $showEditSheet) {
+                if let book = bookToEdit {
+                    EditBookScreen(
+                        book: book,
+                        editBookUseCase: DIContainer.editBookUseCase,
+                        onBookEdited: {
                             Task {
                                 await viewModel.loadBooks()
                             }
@@ -205,7 +233,6 @@ struct BookListRow: View {
 
     let book: AppBook
     let onSelect: () -> Void
-    let onDelete: () -> Void
 
     private var colors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
@@ -266,11 +293,6 @@ struct BookListRow: View {
             }
         }
         .buttonStyle(.plain)
-        .swipeActions(edge: .trailing) {
-            Button(role: .destructive, action: onDelete) {
-                Label("Delete", systemImage: "trash")
-            }
-        }
     }
 }
 
