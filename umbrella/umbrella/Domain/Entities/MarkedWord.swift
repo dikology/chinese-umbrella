@@ -8,15 +8,15 @@
 import Foundation
 
 /// Represents a word marked as difficult by the user
-struct AppMarkedWord: Identifiable, Codable, Hashable {
-    let id: UUID
-    let userId: UUID
-    let word: String
-    let readingDate: Date
-    let contextSnippet: String // Surrounding text for context
-    let textId: UUID // Book ID
-    let pageNumber: Int
-    var markedCount: Int // How many times this word has been marked
+public struct AppMarkedWord: Identifiable, Codable, Hashable {
+    public let id: UUID
+    public let userId: UUID
+    public let word: String
+    public let readingDate: Date
+    public let contextSnippet: String // Surrounding text for context
+    public let textId: UUID // Book ID
+    public let pageNumber: Int
+    public var markedCount: Int // How many times this word has been marked
 
     init(
         id: UUID = UUID(),
@@ -63,11 +63,11 @@ struct AppMarkedWord: Identifiable, Codable, Hashable {
 
     // MARK: - Hashable
 
-    func hash(into hasher: inout Hasher) {
+    public func hash(into hasher: inout Hasher) {
         hasher.combine(id)
     }
 
-    static func == (lhs: AppMarkedWord, rhs: AppMarkedWord) -> Bool {
+    public static func == (lhs: AppMarkedWord, rhs: AppMarkedWord) -> Bool {
         lhs.id == rhs.id
     }
 }

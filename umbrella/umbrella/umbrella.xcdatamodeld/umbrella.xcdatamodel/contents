@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="1" systemVersion="11A491" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithCloudKit="false" userDefinedModelVersionIdentifier="">
     <!-- User Entity -->
-    <entity name="User" representedClassName="AppUserEntity" syncable="YES" codeGenerationType="class">
+    <entity name="User" representedClassName="UserEntity" syncable="YES" codeGenerationType="none">
         <attribute name="id" optional="NO" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="email" optional="NO" attributeType="String"/>
         <attribute name="displayName" optional="NO" attributeType="String"/>
@@ -17,20 +17,22 @@
     </entity>
 
     <!-- Book Entity -->
-    <entity name="Book" representedClassName="Book" syncable="YES" codeGenerationType="class">
+    <entity name="Book" representedClassName="CDBook" syncable="YES" codeGenerationType="none">
         <attribute name="id" optional="NO" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="title" optional="NO" attributeType="String"/>
         <attribute name="author" optional="YES" attributeType="String"/>
         <attribute name="createdDate" optional="NO" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="updatedDate" optional="NO" attributeType="Date" usesScalarValueType="NO"/>
         <attribute name="isSynced" optional="NO" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="currentPageIndex" optional="NO" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="isLocal" optional="NO" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
         <relationship name="owner" optional="NO" maxCount="1" deletionRule="Nullify" destinationEntity="User" inverseName="books" inverseEntity="User"/>
         <relationship name="pages" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="BookPage" inverseName="book" inverseEntity="BookPage"/>
         <relationship name="markedWords" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="MarkedWord" inverseName="book" inverseEntity="MarkedWord"/>
     </entity>
 
     <!-- BookPage Entity -->
-    <entity name="BookPage" representedClassName="BookPage" syncable="YES" codeGenerationType="class">
+    <entity name="BookPage" representedClassName="CDBookPage" syncable="YES" codeGenerationType="none">
         <attribute name="id" optional="NO" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="pageNumber" optional="NO" attributeType="Integer 16" defaultValueString="1" usesScalarValueType="YES"/>
         <attribute name="extractedText" optional="NO" attributeType="String"/>
@@ -43,7 +45,7 @@
     </entity>
 
     <!-- WordSegment Entity -->
-    <entity name="WordSegment" representedClassName="WordSegment" syncable="YES" codeGenerationType="class">
+    <entity name="WordSegment" representedClassName="CDWordSegment" syncable="YES" codeGenerationType="none">
         <attribute name="id" optional="NO" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="word" optional="NO" attributeType="String"/>
         <attribute name="pinyin" optional="YES" attributeType="String"/>
@@ -54,7 +56,7 @@
     </entity>
 
     <!-- MarkedWord Entity -->
-    <entity name="MarkedWord" representedClassName="MarkedWord" syncable="YES" codeGenerationType="class">
+    <entity name="MarkedWord" representedClassName="CDMarkedWord" syncable="YES" codeGenerationType="none">
         <attribute name="id" optional="NO" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="word" optional="NO" attributeType="String"/>
         <attribute name="readingDate" optional="NO" attributeType="Date" usesScalarValueType="NO"/>

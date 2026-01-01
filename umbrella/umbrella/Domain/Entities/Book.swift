@@ -8,15 +8,15 @@
 import Foundation
 
 /// Represents a book in the user's library
-struct AppBook: Identifiable, Codable, Hashable {
-    let id: UUID
-    let title: String
-    let author: String?
-    let pages: [AppBookPage]
-    let createdDate: Date
-    var updatedDate: Date
-    var currentPageIndex: Int
-    var isLocal: Bool // true for user-uploaded, false for public library
+public struct AppBook: Identifiable, Codable, Hashable {
+    public let id: UUID
+    public let title: String
+    public let author: String?
+    public let pages: [AppBookPage]
+    public let createdDate: Date
+    public var updatedDate: Date
+    public var currentPageIndex: Int
+    public var isLocal: Bool // true for user-uploaded, false for public library
 
     init(
         id: UUID = UUID(),
@@ -87,11 +87,11 @@ struct AppBook: Identifiable, Codable, Hashable {
 
     // MARK: - Hashable
 
-    func hash(into hasher: inout Hasher) {
+    public func hash(into hasher: inout Hasher) {
         hasher.combine(id)
     }
 
-    static func == (lhs: AppBook, rhs: AppBook) -> Bool {
+    public static func == (lhs: AppBook, rhs: AppBook) -> Bool {
         lhs.id == rhs.id
     }
 }

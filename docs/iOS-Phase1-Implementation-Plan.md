@@ -74,6 +74,7 @@ This document outlines the complete implementation plan for the iOS Phase 1 MVP,
 | **Dictionary** | CEDICT (embedded) | Free, comprehensive, offline |
 | **Sync** | CloudKit or custom Backend | Phase 2 feature, prepare APIs now |
 | **Analytics** | Custom logging | Proficiency calculation pipeline |
+| **Logging** | OSLog (unified logging) | Structured logging with categories |
 | **Testing** | Swift Testing | Native testing framework |
 
 ### 2.3 Core Modules
@@ -181,6 +182,41 @@ chinese-umbrella/
 │   └── DependencyInjection/
 │       └── DIContainer.swift
 │
+#### Logging System (LoggingService.swift)
+|
+**Purpose:** Centralized, structured logging using Apple's OSLog framework
+|
+**Features:**
+- **Multiple Log Levels:** debug, info, default, error, fault
+- **Categorized Logging:** Auth, Core Data, OCR, Reading, Performance
+- **Context Information:** File, function, line number
+- **Debug-Only Logging:** Debug logs only appear in development builds
+- **Performance Tracking:** Built-in duration logging for operations
+|
+**Implementation:**
+```swift
+// Usage examples
+logger.auth("User signed up successfully", level: .info)
+logger.coreData("Failed to save user", level: .error, error: error)
+logger.performance("OCR processing completed", duration: 1.2)
+
+// Debug logs (development only)
+logger.debug("Processing page 5 of 10")
+```
+|
+**Log Categories:**
+- **Auth:** Authentication events (signup, login, validation)
+- **CoreData:** Database operations and errors
+- **OCR:** Text recognition and processing
+- **Reading:** Session tracking, word marking
+- **Performance:** Operation timing and bottlenecks
+|
+**Benefits:**
+- **Production Ready:** Efficient OSLog with log levels
+- **Privacy Compliant:** No PII in logs (Phase 1)
+- **Debug Support:** Rich context for development
+- **Monitoring Ready:** Structured for future analytics
+|
 ├── Resources/
 │   ├── Strings/
 │   │   ├── Localizable.strings (English)
@@ -253,7 +289,7 @@ final class LibraryViewModel {
     // MARK: Methods
     func uploadBook(pages: [UIImage], title: String, author: String?)
     func processOCR(images: [UIImage]) -> [String] // Extracted text per page
-    func saveBook(_ book: Book)
+    func saveBook(_ book: Book, userId: UUID)
     func deleteBook(_ book: Book)
     func fetchLibrary()
 }
