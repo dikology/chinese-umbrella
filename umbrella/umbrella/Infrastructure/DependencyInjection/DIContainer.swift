@@ -35,11 +35,11 @@ struct DIContainer {
     // Repositories - Currently implemented
     static let authRepository = AuthRepositoryImpl()
     static let bookRepository = BookRepositoryImpl(coreDataManager: coreDataManager)
+    static let dictionaryRepository = DictionaryRepositoryImpl()
+    static let wordMarkerRepository = WordMarkerRepositoryImpl()
 
     // TODO: Implement in future phases
     // static let readingProgressRepository = ReadingProgressRepositoryImpl()
-    // static let dictionaryRepository = DictionaryRepositoryImpl()
-    // static let wordMarkerRepository = WordMarkerRepositoryImpl()
     // static let proficiencyRepository = ProficiencyRepositoryImpl()
     // static let userPreferencesRepository = UserPreferencesRepositoryImpl()
 
@@ -72,6 +72,16 @@ struct DIContainer {
 
     // Note: LibraryViewModel is now created in ContentView to share the same authViewModel instance
     // static let libraryViewModel = LibraryViewModel(bookRepository: bookRepository, authViewModel: authViewModel)
+
+    @MainActor
+    static func makeReadingViewModel() -> ReadingViewModel {
+        return ReadingViewModel(
+            bookRepository: bookRepository,
+            dictionaryRepository: dictionaryRepository,
+            wordMarkerRepository: wordMarkerRepository,
+            textSegmentationService: textSegmentationService
+        )
+    }
 
     // MARK: - Preview Instances (for SwiftUI Previews)
 
