@@ -168,8 +168,17 @@ class DefaultBookUploadUseCase: BookUploadUseCase {
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
 
-        if let firstLine = lines.first, firstLine.count > 3 && firstLine.count < 50 {
-            return firstLine
+        // Skip lines that look like chapter headings
+        let titleCandidates = lines.filter { line in
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            // Skip lines that start with chapter indicators (Chinese)
+            return !trimmed.hasPrefix("第") &&
+                   !trimmed.contains("章") &&
+                   trimmed.count >= 2 && trimmed.count <= 50
+        }
+
+        if let titleLine = titleCandidates.first {
+            return titleLine
         }
 
         // Fallback: extract first sentence

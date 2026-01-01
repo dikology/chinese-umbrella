@@ -38,13 +38,24 @@ class LocalTextSegmentationService: TextSegmentationService {
 
     /// Segment text with position information using NLTokenizer
     func segmentWithPositions(text: String) async throws -> [AppWordSegment] {
+        // Handle edge cases first
+        let trimmedText = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmedText.isEmpty {
+            return []
+        }
+
+        // For punctuation-only text, segment each character
+        if isPunctuationOnly(text) {
+            return segmentPunctuationOnly(text)
+        }
+
+        // For Chinese text, use character-based segmentation for language learning
+        if containsChineseCharacters(text) {
+            return segmentChineseText(text)
+        }
+
         let tokenizer = NLTokenizer(unit: .word)
         tokenizer.string = text
-
-        // Set language for better Chinese segmentation
-        if containsChineseCharacters(text) {
-            tokenizer.setLanguage(.simplifiedChinese)
-        }
 
         var segments: [AppWordSegment] = []
         var lastEndIndex = text.startIndex
@@ -102,13 +113,79 @@ class LocalTextSegmentationService: TextSegmentationService {
         return text.rangeOfCharacter(from: chineseCharacterSet) != nil
     }
 
+    /// Check if text contains only punctuation
+    private func isPunctuationOnly(_ text: String) -> Bool {
+        return text.allSatisfy { char in
+            char.unicodeScalars.allSatisfy { punctuationSet.contains($0) } || char.isWhitespace || char.isNewline
+        }
+    }
+
+    /// Segment punctuation-only text into individual characters
+    private func segmentPunctuationOnly(_ text: String) -> [AppWordSegment] {
+        var segments: [AppWordSegment] = []
+        var currentIndex = 0
+
+        for char in text {
+            if !char.isWhitespace && !char.isNewline {
+                segments.append(AppWordSegment(
+                    word: String(char),
+                    pinyin: nil,
+                    startIndex: currentIndex,
+                    endIndex: currentIndex + 1,
+                    isMarked: false
+                ))
+            }
+            currentIndex += 1
+        }
+
+        return segments
+    }
+
+    /// Segment Chinese text into individual characters for language learning
+    private func segmentChineseText(_ text: String) -> [AppWordSegment] {
+        var segments: [AppWordSegment] = []
+        var currentIndex = 0
+
+        for char in text {
+            if char.isWhitespace || char.isNewline {
+                // Skip whitespace for Chinese text (unlike punctuation which we want to preserve)
+                currentIndex += 1
+                continue
+            }
+
+            // Check if this is punctuation
+            if char.unicodeScalars.allSatisfy({ punctuationSet.contains($0) }) {
+                segments.append(AppWordSegment(
+                    word: String(char),
+                    pinyin: nil,
+                    startIndex: currentIndex,
+                    endIndex: currentIndex + 1,
+                    isMarked: false
+                ))
+            } else {
+                // Chinese character
+                segments.append(AppWordSegment(
+                    word: String(char),
+                    pinyin: nil,
+                    startIndex: currentIndex,
+                    endIndex: currentIndex + 1,
+                    isMarked: false
+                ))
+            }
+            currentIndex += 1
+        }
+
+        return segments
+    }
+
     /// Process intermediate text (between words) into individual segments
     /// Handles punctuation, newlines, and whitespace as separate tokens
     private func addIntermediateSegments(
         from intermediateText: String,
         startIndex: String.Index,
         in fullText: String,
-        to segments: inout [AppWordSegment]
+        to segments: inout [AppWordSegment],
+        includeNewlines: Bool = true
     ) {
         var currentIndex = startIndex
         var currentGroup = ""
@@ -147,8 +224,8 @@ class LocalTextSegmentationService: TextSegmentationService {
                 currentGroup = String(char)
                 currentGroupType = charType
 
-                // Newlines are always individual tokens
-                if charType == .newline {
+                // Newlines are individual tokens only if includeNewlines is true
+                if charType == .newline && includeNewlines {
                     let endIndex = fullText.index(currentGroupStart, offsetBy: 1)
                     let range = currentGroupStart..<endIndex
                     let startOffset = fullText.distance(from: fullText.startIndex, to: range.lowerBound)

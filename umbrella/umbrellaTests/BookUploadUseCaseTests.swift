@@ -132,7 +132,9 @@ struct BookUploadUseCaseTests {
         #expect(result.processedImage === processedImage)
         #expect(result.extractedText == "Sample extracted text")
         #expect(result.textBlocks.count == 1)
-        #expect(result.filename == "/path/to/saved/image.jpg")
+        // The filename should be a UUID string ending with .jpg
+        #expect(result.filename.hasSuffix(".jpg"))
+        #expect(UUID(uuidString: String(result.filename.dropLast(4))) != nil)
     }
 
     @MainActor

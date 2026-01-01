@@ -27,10 +27,16 @@ struct TextSegmentationServiceTests {
 
         // Then
         #expect(!segments.isEmpty)
-        #expect(segments.contains { $0 == "这是" })
-        #expect(segments.contains { $0 == "一个" })
-        #expect(segments.contains { $0 == "测试" })
-        #expect(segments.contains { $0 == "句子" })
+        // Chinese text is segmented into individual characters for language learning
+        #expect(segments.contains { $0 == "这" })
+        #expect(segments.contains { $0 == "是" })
+        #expect(segments.contains { $0 == "一" })
+        #expect(segments.contains { $0 == "个" })
+        #expect(segments.contains { $0 == "测" })
+        #expect(segments.contains { $0 == "试" })
+        #expect(segments.contains { $0 == "句" })
+        #expect(segments.contains { $0 == "子" })
+        #expect(segments.contains { $0 == "。" })
     }
 
     @Test func testSegmentWithPositions_chineseText_returnsCorrectPositions() async throws {
@@ -41,13 +47,19 @@ struct TextSegmentationServiceTests {
         let wordSegments = try await service.segmentWithPositions(text: chineseText)
 
         // Then
-        #expect(wordSegments.count >= 2) // Should have at least "你好" and "世界"
+        #expect(wordSegments.count == 4) // Should have 4 individual characters
 
         // Verify positions are correct
         for segment in wordSegments {
             let expectedSubstring = String(chineseText[chineseText.index(chineseText.startIndex, offsetBy: segment.startIndex)..<chineseText.index(chineseText.startIndex, offsetBy: segment.endIndex)])
             #expect(segment.word == expectedSubstring, "Word '\(segment.word)' doesn't match text at positions \(segment.startIndex)-\(segment.endIndex)")
         }
+
+        // Check specific characters
+        #expect(wordSegments.contains { $0.word == "你" && $0.startIndex == 0 && $0.endIndex == 1 })
+        #expect(wordSegments.contains { $0.word == "好" && $0.startIndex == 1 && $0.endIndex == 2 })
+        #expect(wordSegments.contains { $0.word == "世" && $0.startIndex == 2 && $0.endIndex == 3 })
+        #expect(wordSegments.contains { $0.word == "界" && $0.startIndex == 3 && $0.endIndex == 4 })
     }
 
     @Test func testSegmentWithPositions_textWithPunctuation_separatesPunctuation() async throws {
@@ -82,7 +94,7 @@ struct TextSegmentationServiceTests {
             segment.word == "Hello" || segment.word == "This" || segment.word == "is" || segment.word == "a" || segment.word == "test"
         }
         let hasChineseWords = wordSegments.contains { segment in
-            segment.word == "世界"
+            segment.word == "世" || segment.word == "界"
         }
         let hasPunctuation = wordSegments.contains { segment in
             segment.word == "！" || segment.word == "."
@@ -103,19 +115,25 @@ struct TextSegmentationServiceTests {
         let wordSegments = try await service.segmentWithPositions(text: longText)
 
         // Then
-        #expect(wordSegments.count > 10, "Should segment long text into multiple words")
+        #expect(wordSegments.count > 10, "Should segment long text into individual characters")
 
-        // Verify some expected segmentations
+        // For language learning, Chinese text is segmented into individual characters
+        let allSingleChars = wordSegments.allSatisfy { $0.word.count == 1 }
+        #expect(allSingleChars, "Should segment Chinese text into individual characters")
+
+        // Verify some expected characters are present
         let segmentWords = wordSegments.map { $0.word }
-        #expect(segmentWords.contains { $0 == "红楼梦" }, "Should recognize '红楼梦' as a compound word")
-        #expect(segmentWords.contains { $0 == "中国" }, "Should segment '中国'")
-        #expect(segmentWords.contains { $0 == "小说" }, "Should segment '小说'")
+        #expect(segmentWords.contains("红"), "Should contain individual characters")
+        #expect(segmentWords.contains("楼"), "Should contain individual characters")
+        #expect(segmentWords.contains("梦"), "Should contain individual characters")
+        #expect(segmentWords.contains("中"), "Should contain individual characters")
+        #expect(segmentWords.contains("国"), "Should contain individual characters")
 
         // Verify positions are contiguous and non-overlapping
         for i in 0..<wordSegments.count-1 {
             let currentEnd = wordSegments[i].endIndex
             let nextStart = wordSegments[i+1].startIndex
-            #expect(currentEnd <= nextStart, "Word positions should not overlap")
+            #expect(currentEnd == nextStart, "Character positions should be contiguous")
         }
     }
 
@@ -287,12 +305,19 @@ struct TextSegmentationServiceTests {
         let wordSegments = try await service.segmentWithPositions(text: chineseText)
 
         // Then
-        #expect(!wordSegments.isEmpty)
+        #expect(wordSegments.count == 6) // Should have 6 individual characters
 
-        // The service should handle Chinese text appropriately
-        // (NLTokenizer should be configured for Chinese when Chinese characters are detected)
-        let hasMultiCharWords = wordSegments.contains { $0.word.count > 1 }
-        #expect(hasMultiCharWords, "Should create multi-character Chinese word segments")
+        // For language learning, Chinese text is segmented into individual characters
+        let allSingleChars = wordSegments.allSatisfy { $0.word.count == 1 }
+        #expect(allSingleChars, "Should segment Chinese into individual characters for language learning")
+
+        // Check specific characters are present
+        #expect(wordSegments.contains { $0.word == "我" })
+        #expect(wordSegments.contains { $0.word == "爱" })
+        #expect(wordSegments.contains { $0.word == "学" })
+        #expect(wordSegments.contains { $0.word == "习" })
+        #expect(wordSegments.contains { $0.word == "中" })
+        #expect(wordSegments.contains { $0.word == "文" })
     }
 
     @Test func testSegmentWithPositions_handlesNumbersAndSymbols() async throws {

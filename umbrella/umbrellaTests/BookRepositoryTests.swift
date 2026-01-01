@@ -58,7 +58,11 @@ struct BookRepositoryTests {
         let user = UserEntity(context: context)
         user.id = userId
         user.email = "test@example.com"
+        user.displayName = "Test User"
+        user.hskLevel = 1
+        user.vocabularyMasteryPct = 0.0
         user.createdAt = Date()
+        user.updatedAt = Date()
         try context.save()
         return user
     }
@@ -110,6 +114,11 @@ struct BookRepositoryTests {
         let user2 = UserEntity(context: context)
         user2.id = user2Id
         user2.email = "user2@example.com"
+        user2.displayName = "User Two"
+        user2.hskLevel = 2
+        user2.vocabularyMasteryPct = 0.0
+        user2.createdAt = Date()
+        user2.updatedAt = Date()
         try context.save()
 
         let book1 = createTestBook(title: "User1 Book")
