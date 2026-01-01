@@ -126,7 +126,15 @@ struct LibraryScreen: View {
             .navigationBarHidden(true)
             .sheet(isPresented: $showUploadSheet) {
                 if let userId = viewModel.currentUserId {
-                    BookUploadScreen(bookUploadUseCase: DIContainer.bookUploadUseCase, userId: userId)
+                    BookUploadScreen(
+                        bookUploadUseCase: DIContainer.bookUploadUseCase,
+                        userId: userId,
+                        onBookUploaded: {
+                            Task {
+                                await viewModel.loadBooks()
+                            }
+                        }
+                    )
                 }
             }
             .alert("Delete Book", isPresented: $viewModel.showDeleteAlert) {

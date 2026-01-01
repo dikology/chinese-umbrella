@@ -17,8 +17,12 @@ struct BookUploadScreen: View {
     @State private var showPhotoPicker = false
     @State private var showPhotoReview = false
 
-    init(bookUploadUseCase: BookUploadUseCase, userId: UUID) {
-        _viewModel = State(initialValue: BookUploadViewModel(bookUploadUseCase: bookUploadUseCase, userId: userId))
+    init(bookUploadUseCase: BookUploadUseCase, userId: UUID, onBookUploaded: (() -> Void)? = nil) {
+        _viewModel = State(initialValue: BookUploadViewModel(
+            bookUploadUseCase: bookUploadUseCase,
+            userId: userId,
+            onBookUploaded: onBookUploaded
+        ))
     }
 
     var body: some View {
@@ -213,6 +217,7 @@ struct BookUploadScreen: View {
 final class BookUploadViewModel {
     private let bookUploadUseCase: BookUploadUseCase
     private let userId: UUID
+    private let onBookUploaded: (() -> Void)?
 
     var bookTitle = ""
     var bookAuthor = ""
@@ -222,9 +227,10 @@ final class BookUploadViewModel {
     var errorMessage = ""
     var uploadComplete = false
 
-    init(bookUploadUseCase: BookUploadUseCase, userId: UUID) {
+    init(bookUploadUseCase: BookUploadUseCase, userId: UUID, onBookUploaded: (() -> Void)? = nil) {
         self.bookUploadUseCase = bookUploadUseCase
         self.userId = userId
+        self.onBookUploaded = onBookUploaded
     }
 
     @MainActor
@@ -251,6 +257,9 @@ final class BookUploadViewModel {
 
             print("Successfully uploaded book: \(book.title)")
             uploadComplete = true
+
+            // Notify parent view that a book was uploaded
+            onBookUploaded?()
 
         } catch {
             showError(message: error.localizedDescription)

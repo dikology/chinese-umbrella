@@ -38,17 +38,20 @@ class DefaultBookUploadUseCase: BookUploadUseCase {
     private let ocrService: OCRService
     private let imageProcessingService: ImageProcessingService
     private let textSegmentationService: TextSegmentationService
+    private let bookMetadataService: BookMetadataService
     private let bookRepository: BookRepository
 
     init(
         ocrService: OCRService,
         imageProcessingService: ImageProcessingService,
         textSegmentationService: TextSegmentationService,
+        bookMetadataService: BookMetadataService,
         bookRepository: BookRepository
     ) {
         self.ocrService = ocrService
         self.imageProcessingService = imageProcessingService
         self.textSegmentationService = textSegmentationService
+        self.bookMetadataService = bookMetadataService
         self.bookRepository = bookRepository
     }
 
@@ -102,7 +105,14 @@ class DefaultBookUploadUseCase: BookUploadUseCase {
             pages.append(page)
         }
 
-        // Create the book
+        // Analyze book metadata using the metadata service
+        let metadataAnalysis = try await bookMetadataService.analyzeBookMetadata(
+            images: images,
+            title: actualTitle,
+            author: author
+        )
+
+        // Create the book with enhanced metadata
         let book = AppBook(
             title: actualTitle,
             author: author,
@@ -111,8 +121,11 @@ class DefaultBookUploadUseCase: BookUploadUseCase {
             isLocal: true
         )
 
+        // Apply metadata analysis results
+        let enhancedBook = bookMetadataService.updateBookMetadata(book: book, analysis: metadataAnalysis)
+
         // Save to repository
-        let savedBook = try await bookRepository.saveBook(book, userId: userId)
+        let savedBook = try await bookRepository.saveBook(enhancedBook, userId: userId)
         return savedBook
     }
 
@@ -155,8 +168,17 @@ class DefaultBookUploadUseCase: BookUploadUseCase {
             .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
 
-        if let firstLine = lines.first, firstLine.count > 3 && firstLine.count < 50 {
-            return firstLine
+        // Skip lines that look like chapter headings
+        let titleCandidates = lines.filter { line in
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            // Skip lines that start with chapter indicators (Chinese)
+            return !trimmed.hasPrefix("第") &&
+                   !trimmed.contains("章") &&
+                   trimmed.count >= 2 && trimmed.count <= 50
+        }
+
+        if let titleLine = titleCandidates.first {
+            return titleLine
         }
 
         // Fallback: extract first sentence
@@ -175,21 +197,14 @@ class DefaultBookUploadUseCase: BookUploadUseCase {
     // MARK: - Private Methods
 
     private func segmentText(_ text: String) async throws -> [AppWordSegment] {
-        let words = try await textSegmentationService.segment(text: text)
-        return words.enumerated().map { index, word in
-            AppWordSegment(
-                word: word,
-                pinyin: nil, // Will be looked up separately
-                startIndex: index * 2, // Rough approximation
-                endIndex: index * 2 + word.count,
-                isMarked: false
-            )
-        }
+        // Use the improved segmentation service that returns proper position information
+        let segments = try await textSegmentationService.segmentWithPositions(text: text)
+        return segments
     }
 }
 
 /// Errors that can occur during book upload
-enum BookUploadError: LocalizedError {
+enum BookUploadError: LocalizedError, Equatable {
     case noValidImages
     case ocrFailed(page: Int, error: Error)
     case saveFailed(error: Error)
@@ -208,6 +223,24 @@ enum BookUploadError: LocalizedError {
             return "Book title is required"
         case .networkError:
             return "Network connection required for text processing"
+        }
+    }
+
+    // Equatable conformance for testing
+    static func == (lhs: BookUploadError, rhs: BookUploadError) -> Bool {
+        switch (lhs, rhs) {
+        case (.noValidImages, .noValidImages):
+            return true
+        case (.ocrFailed(let lhsPage, _), .ocrFailed(let rhsPage, _)):
+            return lhsPage == rhsPage
+        case (.saveFailed, .saveFailed):
+            return true // Don't compare the actual Error values
+        case (.invalidTitle, .invalidTitle):
+            return true
+        case (.networkError, .networkError):
+            return true
+        default:
+            return false
         }
     }
 }

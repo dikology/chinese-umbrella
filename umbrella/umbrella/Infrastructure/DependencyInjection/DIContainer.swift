@@ -17,10 +17,12 @@ struct DIContainer {
 
     // Use Cases
     static let authUseCase = AuthUseCase(repository: authRepository, keychainService: keychainService)
+    static let bookMetadataService = DefaultBookMetadataService()
     static let bookUploadUseCase = DefaultBookUploadUseCase(
         ocrService: ocrService,
         imageProcessingService: imageProcessingService,
         textSegmentationService: textSegmentationService,
+        bookMetadataService: bookMetadataService,
         bookRepository: bookRepository
     )
     // static let readingUseCase = ReadingUseCase(repository: readingProgressRepository, dictionaryRepository: dictionaryRepository)
@@ -47,7 +49,7 @@ struct DIContainer {
     static let keychainService = KeychainService()
     static let ocrService = AppleVisionOCRService()
     static let imageProcessingService = DefaultImageProcessingService()
-    static let textSegmentationService = HanLPSegmentationService()
+    static let textSegmentationService = LocalTextSegmentationService()
     // static let dictionaryService = CEDICTDictionaryService()
     // static let notificationService = NotificationService()
     // static let storageService = FileSystemStorageService()
@@ -68,8 +70,8 @@ struct DIContainer {
     @MainActor
     static let authViewModel = AuthViewModel(authUseCase: authUseCase)
 
-    @MainActor
-    static let libraryViewModel = LibraryViewModel(bookRepository: bookRepository, authViewModel: authViewModel)
+    // Note: LibraryViewModel is now created in ContentView to share the same authViewModel instance
+    // static let libraryViewModel = LibraryViewModel(bookRepository: bookRepository, authViewModel: authViewModel)
 
     // MARK: - Preview Instances (for SwiftUI Previews)
 

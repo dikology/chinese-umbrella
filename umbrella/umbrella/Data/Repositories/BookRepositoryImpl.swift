@@ -185,6 +185,159 @@ class BookRepositoryImpl: BookRepository {
         }
     }
 
+    func searchBooksWithFilters(query: String?, filters: BookSearchFilters, userId: UUID) async throws -> [AppBook] {
+        let context = coreDataManager.viewContext
+
+        return try await context.perform {
+            var predicates: [NSPredicate] = []
+
+            // Base predicate for user ownership
+            predicates.append(NSPredicate(format: "owner.id == %@", userId as CVarArg))
+
+            // Text search predicate
+            if let query = query, !query.isEmpty {
+                let titlePredicate = NSPredicate(format: "title CONTAINS[cd] %@", query)
+                let authorPredicate = NSPredicate(format: "author CONTAINS[cd] %@", query)
+                let descriptionPredicate = NSPredicate(format: "bookDescription CONTAINS[cd] %@", query)
+                predicates.append(NSCompoundPredicate(orPredicateWithSubpredicates: [titlePredicate, authorPredicate, descriptionPredicate]))
+            }
+
+            // Genre filter
+            if let genres = filters.genres, !genres.isEmpty {
+                let genrePredicates = genres.map { NSPredicate(format: "genre == %@", $0.rawValue) }
+                predicates.append(NSCompoundPredicate(orPredicateWithSubpredicates: genrePredicates))
+            }
+
+            // Language filter
+            if let languages = filters.languages, !languages.isEmpty {
+                let languagePredicates = languages.map { NSPredicate(format: "language == %@", $0) }
+                predicates.append(NSCompoundPredicate(orPredicateWithSubpredicates: languagePredicates))
+            }
+
+            // Difficulty filter
+            if let difficulties = filters.difficulties, !difficulties.isEmpty {
+                let difficultyPredicates = difficulties.map { NSPredicate(format: "difficulty == %@", $0.rawValue) }
+                predicates.append(NSCompoundPredicate(orPredicateWithSubpredicates: difficultyPredicates))
+            }
+
+            // Word count filters
+            if let minWords = filters.minWordCount {
+                predicates.append(NSPredicate(format: "totalWords >= %d", minWords))
+            }
+            if let maxWords = filters.maxWordCount {
+                predicates.append(NSPredicate(format: "totalWords <= %d", maxWords))
+            }
+
+            let fetchRequest = CDBook.fetchRequest()
+            fetchRequest.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: predicates)
+            fetchRequest.sortDescriptors = [NSSortDescriptor(key: "updatedDate", ascending: false)]
+
+            let bookEntities = try context.fetch(fetchRequest)
+            return bookEntities.map { $0.toDomain() }
+        }
+    }
+
+    func getBooksByGenre(_ genre: BookGenre, userId: UUID) async throws -> [AppBook] {
+        let context = coreDataManager.viewContext
+
+        return try await context.perform {
+            let fetchRequest = CDBook.fetchRequest()
+            fetchRequest.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+                NSPredicate(format: "owner.id == %@", userId as CVarArg),
+                NSPredicate(format: "genre == %@", genre.rawValue)
+            ])
+            fetchRequest.sortDescriptors = [NSSortDescriptor(key: "updatedDate", ascending: false)]
+
+            let bookEntities = try context.fetch(fetchRequest)
+            return bookEntities.map { $0.toDomain() }
+        }
+    }
+
+    func getBooksByLanguage(_ language: String, userId: UUID) async throws -> [AppBook] {
+        let context = coreDataManager.viewContext
+
+        return try await context.perform {
+            let fetchRequest = CDBook.fetchRequest()
+            fetchRequest.predicate = NSCompoundPredicate(andPredicateWithSubpredicates: [
+                NSPredicate(format: "owner.id == %@", userId as CVarArg),
+                NSPredicate(format: "language == %@", language)
+            ])
+            fetchRequest.sortDescriptors = [NSSortDescriptor(key: "updatedDate", ascending: false)]
+
+            let bookEntities = try context.fetch(fetchRequest)
+            return bookEntities.map { $0.toDomain() }
+        }
+    }
+
+    func getBooksByProgressStatus(_ status: ReadingProgressStatus, userId: UUID) async throws -> [AppBook] {
+        let context = coreDataManager.viewContext
+
+        return try await context.perform {
+            let fetchRequest = CDBook.fetchRequest()
+            fetchRequest.predicate = NSPredicate(format: "owner.id == %@", userId as CVarArg)
+            fetchRequest.sortDescriptors = [NSSortDescriptor(key: "updatedDate", ascending: false)]
+
+            let bookEntities = try context.fetch(fetchRequest)
+            let filteredBooks = bookEntities.map { $0.toDomain() }.filter { book in
+                switch status {
+                case .notStarted:
+                    return book.readingProgress == 0.0
+                case .inProgress:
+                    return book.readingProgress > 0.0 && book.readingProgress < 1.0
+                case .completed:
+                    return book.isCompleted
+                }
+            }
+
+            return filteredBooks
+        }
+    }
+
+    func getLibraryStatistics(userId: UUID) async throws -> LibraryStatistics {
+        let context = coreDataManager.viewContext
+
+        return try await context.perform {
+            let fetchRequest = CDBook.fetchRequest()
+            fetchRequest.predicate = NSPredicate(format: "owner.id == %@", userId as CVarArg)
+
+            let bookEntities = try context.fetch(fetchRequest)
+            let books = bookEntities.map { $0.toDomain() }
+
+            let totalBooks = books.count
+            let totalWords = books.reduce(0) { $0 + $1.calculatedTotalWords }
+            let totalReadingTime = books.reduce(0) { $0 + $1.calculatedReadingTimeMinutes }
+            let completedBooks = books.filter { $0.isCompleted }.count
+
+            // Calculate books by genre
+            var booksByGenre: [BookGenre: Int] = [:]
+            for book in books {
+                if let genre = book.genre {
+                    booksByGenre[genre, default: 0] += 1
+                }
+            }
+
+            // Calculate books by language
+            var booksByLanguage: [String: Int] = [:]
+            for book in books {
+                if let language = book.language {
+                    booksByLanguage[language, default: 0] += 1
+                }
+            }
+
+            let averageReadingProgress = books.isEmpty ? 0.0 : books.reduce(0.0) { $0 + $1.readingProgress } / Double(books.count)
+
+            return LibraryStatistics(
+                totalBooks: totalBooks,
+                totalWords: totalWords,
+                totalReadingTimeMinutes: totalReadingTime,
+                completedBooks: completedBooks,
+                booksByGenre: booksByGenre,
+                booksByLanguage: booksByLanguage,
+                averageReadingProgress: averageReadingProgress
+            )
+        }
+    }
+
     func updateReadingProgress(bookId: UUID, pageIndex: Int) async throws {
         let context = coreDataManager.viewContext
 
