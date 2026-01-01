@@ -39,6 +39,7 @@ enum AuthError: LocalizedError {
     case userAlreadyExists
     case weakPassword
     case invalidEmail
+    case emptyDisplayName
     case networkError
     case appleSignInFailed
     case unknown(Error)
@@ -55,6 +56,8 @@ enum AuthError: LocalizedError {
             return "Password is too weak"
         case .invalidEmail:
             return "Invalid email address"
+        case .emptyDisplayName:
+            return "Display name is required"
         case .networkError:
             return "Network connection error"
         case .appleSignInFailed:

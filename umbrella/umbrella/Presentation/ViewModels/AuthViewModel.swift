@@ -120,9 +120,13 @@ final class AuthViewModel {
 
         do {
             try await action()
+        } catch let authError as AuthError {
+            await MainActor.run {
+                errorMessage = authError.errorDescription ?? "An authentication error occurred"
+            }
         } catch {
             await MainActor.run {
-                errorMessage = error.localizedDescription
+                errorMessage = "An unexpected error occurred: \(error.localizedDescription)"
             }
         }
 
