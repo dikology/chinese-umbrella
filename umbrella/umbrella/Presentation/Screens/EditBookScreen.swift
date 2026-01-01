@@ -7,6 +7,9 @@
 
 import SwiftUI
 
+// Import for logging
+import class Foundation.Bundle
+
 /// Screen for editing books by adding pages or updating metadata
 struct EditBookScreen: View {
     @State private var viewModel: EditBookViewModel
@@ -18,11 +21,13 @@ struct EditBookScreen: View {
     @State private var showPhotoReview = false
 
     init(book: AppBook, editBookUseCase: EditBookUseCase, onBookEdited: (() -> Void)? = nil) {
+        LoggingService.shared.debug("EditBookScreen init called with book: \(book.title), pages: \(book.totalPages), author: \(book.author ?? "nil")")
         _viewModel = State(initialValue: EditBookViewModel(
             book: book,
             editBookUseCase: editBookUseCase,
             onBookEdited: onBookEdited
         ))
+        LoggingService.shared.debug("EditBookViewModel created with existingPageCount: \(_viewModel.wrappedValue.existingPageCount)")
     }
 
     var body: some View {

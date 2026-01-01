@@ -52,6 +52,7 @@ final class EditBookViewModel {
         editBookUseCase: EditBookUseCase,
         onBookEdited: (() -> Void)? = nil
     ) {
+        LoggingService.shared.debug("EditBookViewModel init: book.title=\(book.title), book.totalPages=\(book.totalPages), book.author=\(book.author ?? "nil")")
         self.existingBook = book
         self.editBookUseCase = editBookUseCase
         self.onBookEdited = onBookEdited
@@ -59,6 +60,8 @@ final class EditBookViewModel {
         // Pre-populate with existing book data
         self.bookTitle = book.title
         self.bookAuthor = book.author ?? ""
+
+        LoggingService.shared.debug("EditBookViewModel init complete: bookTitle=\(bookTitle), bookAuthor=\(bookAuthor), existingPageCount=\(existingPageCount)")
     }
 
     @MainActor
@@ -84,7 +87,7 @@ final class EditBookViewModel {
                 updatedAuthor: bookAuthor.isEmpty ? nil : bookAuthor
             )
 
-            print("Successfully edited book: \(editedBook.title) (added \(selectedImages.count) pages)")
+            LoggingService.shared.info("Successfully edited book: \(editedBook.title) (added \(selectedImages.count) pages)")
             editComplete = true
 
             // Notify parent view that a book was edited

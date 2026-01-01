@@ -122,6 +122,7 @@ struct LibraryScreen: View {
                         .listRowBackground(Color.clear)
                         .swipeActions(edge: .leading) {
                             Button(action: {
+                                LoggingService.shared.debug("LibraryScreen: Setting bookToEdit to book with title: \(book.title), pages: \(book.totalPages)")
                                 bookToEdit = book
                                 showEditSheet = true
                             }) {
@@ -171,7 +172,19 @@ struct LibraryScreen: View {
                             }
                         }
                     )
+                } else {
+                    EmptyView()
                 }
+            }
+            .onChange(of: showEditSheet) { oldValue, newValue in
+                if newValue {
+                    if bookToEdit != nil {
+                        LoggingService.shared.debug("LibraryScreen: Presenting EditBookScreen for book: \(bookToEdit!.title)")
+                    } else {
+                        LoggingService.shared.warning("LibraryScreen: Attempting to show EditBookScreen but bookToEdit is nil")
+                    }
+                }
+            }
             }
             .alert("Delete Book", isPresented: $viewModel.showDeleteAlert) {
                 Button("Cancel", role: .cancel) {
@@ -224,7 +237,6 @@ struct FilterPill: View {
             .cornerRadius(20)
         }
     }
-}
 }
 
 /// Book list row component
