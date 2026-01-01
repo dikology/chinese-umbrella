@@ -9,12 +9,20 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
+    let authViewModel: AuthViewModel
+
+    init(authViewModel: AuthViewModel) {
+        self.authViewModel = authViewModel
+    }
 
     var body: some View {
-        LibraryScreen(viewModel: DIContainer.libraryViewModel)
+        LibraryScreen(viewModel: LibraryViewModel(
+            bookRepository: DIContainer.bookRepository,
+            authViewModel: authViewModel
+        ))
     }
 }
 
 #Preview {
-    ContentView()
+    ContentView(authViewModel: AuthViewModel(authUseCase: AuthUseCase(repository: AuthRepositoryImpl(), keychainService: KeychainService())))
 }

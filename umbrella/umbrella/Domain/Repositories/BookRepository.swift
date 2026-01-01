@@ -97,7 +97,7 @@ protocol BookRepository {
 }
 
 /// Errors that can occur during book operations
-enum BookRepositoryError: LocalizedError {
+enum BookRepositoryError: LocalizedError, Equatable {
     case bookNotFound
     case invalidBookData
     case saveFailed
@@ -119,6 +119,26 @@ enum BookRepositoryError: LocalizedError {
             return "Network connection error"
         case .unknown(let error):
             return "Unknown error: \(error.localizedDescription)"
+        }
+    }
+
+    // Equatable conformance for testing
+    static func == (lhs: BookRepositoryError, rhs: BookRepositoryError) -> Bool {
+        switch (lhs, rhs) {
+        case (.bookNotFound, .bookNotFound):
+            return true
+        case (.invalidBookData, .invalidBookData):
+            return true
+        case (.saveFailed, .saveFailed):
+            return true
+        case (.deleteFailed, .deleteFailed):
+            return true
+        case (.networkError, .networkError):
+            return true
+        case (.unknown, .unknown):
+            return true // Don't compare the actual Error values
+        default:
+            return false
         }
     }
 }

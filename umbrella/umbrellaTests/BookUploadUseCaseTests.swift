@@ -42,6 +42,7 @@ struct BookUploadUseCaseTests {
 
     // MARK: - Tests
 
+    @MainActor
     @Test func testValidateImages_withValidImages_returnsAllValid() async throws {
         // Given
         let (ocrService, imageProcessingService, textSegmentationService, bookMetadataService, bookRepository) = createMockServices()
@@ -58,8 +59,8 @@ struct BookUploadUseCaseTests {
         // Mock valid image validation results
         imageProcessingService.validateResult = ImageValidationResult(
             isValid: true,
-            issues: [],
-            suggestions: []
+            warnings: [],
+            recommendations: []
         )
 
         // When
@@ -70,6 +71,7 @@ struct BookUploadUseCaseTests {
         #expect(results.allSatisfy { $0.isValid })
     }
 
+    @MainActor
     @Test func testValidateImages_withInvalidImages_filtersThemOut() async throws {
         // Given
         let (ocrService, imageProcessingService, textSegmentationService, bookMetadataService, bookRepository) = createMockServices()
@@ -85,8 +87,8 @@ struct BookUploadUseCaseTests {
 
         // Mock one valid, one invalid
         imageProcessingService.validateResults = [
-            ImageValidationResult(isValid: true, issues: [], suggestions: []),
-            ImageValidationResult(isValid: false, issues: [.tooSmall], suggestions: [])
+            ImageValidationResult(isValid: true, warnings: [], recommendations: []),
+            ImageValidationResult(isValid: false, warnings: [.lowResolution(width: 100, height: 100)], recommendations: [])
         ]
 
         // When
@@ -98,6 +100,7 @@ struct BookUploadUseCaseTests {
         #expect(!results[1].isValid)
     }
 
+    @MainActor
     @Test func testProcessImage_successfulProcessing_returnsProcessedImage() async throws {
         // Given
         let (ocrService, imageProcessingService, textSegmentationService, bookMetadataService, bookRepository) = createMockServices()
@@ -114,7 +117,7 @@ struct BookUploadUseCaseTests {
 
         // Mock services
         imageProcessingService.processResult = processedImage
-        imageProcessingService.validateResult = ImageValidationResult(isValid: true, issues: [], suggestions: [])
+        imageProcessingService.validateResult = ImageValidationResult(isValid: true, warnings: [], recommendations: [])
         ocrService.recognizeResult = "Sample extracted text"
         ocrService.extractTextBlocksResult = [
             TextBlock(text: "Sample", boundingBox: .zero, confidence: 0.9)
@@ -132,6 +135,7 @@ struct BookUploadUseCaseTests {
         #expect(result.filename == "/path/to/saved/image.jpg")
     }
 
+    @MainActor
     @Test func testGenerateTitle_withEmptyTitle_extractsFromText() async throws {
         // Given
         let (ocrService, imageProcessingService, textSegmentationService, bookMetadataService, bookRepository) = createMockServices()
@@ -160,6 +164,7 @@ struct BookUploadUseCaseTests {
         #expect(title == "红楼梦")
     }
 
+    @MainActor
     @Test func testGenerateTitle_withExistingTitle_returnsExisting() async throws {
         // Given
         let (ocrService, imageProcessingService, textSegmentationService, bookMetadataService, bookRepository) = createMockServices()
@@ -178,6 +183,7 @@ struct BookUploadUseCaseTests {
         #expect(title == "Some text content")
     }
 
+    @MainActor
     @Test func testUploadBook_successfulUpload_returnsSavedBook() async throws {
         // Given
         let (ocrService, imageProcessingService, textSegmentationService, bookMetadataService, bookRepository) = createMockServices()
@@ -193,7 +199,7 @@ struct BookUploadUseCaseTests {
         let userId = UUID()
 
         // Mock all dependencies
-        imageProcessingService.validateResult = ImageValidationResult(isValid: true, issues: [], suggestions: [])
+        imageProcessingService.validateResult = ImageValidationResult(isValid: true, warnings: [], recommendations: [])
         imageProcessingService.processResult = createTestImage(width: 200, height: 200)
         ocrService.recognizeResult = "Sample Chinese text 这是中文"
         ocrService.extractTextBlocksResult = [TextBlock(text: "Sample", boundingBox: .zero, confidence: 0.9)]
@@ -241,6 +247,7 @@ struct BookUploadUseCaseTests {
         #expect(result.totalWords == 100)
     }
 
+    @MainActor
     @Test func testUploadBook_withNoValidImages_throwsError() async throws {
         // Given
         let (ocrService, imageProcessingService, textSegmentationService, bookMetadataService, bookRepository) = createMockServices()
@@ -256,7 +263,7 @@ struct BookUploadUseCaseTests {
         let userId = UUID()
 
         // Mock invalid image
-        imageProcessingService.validateResult = ImageValidationResult(isValid: false, issues: [.tooSmall], suggestions: [])
+        imageProcessingService.validateResult = ImageValidationResult(isValid: false, warnings: [.lowResolution(width: 100, height: 100)], recommendations: [])
 
         // When/Then
         await #expect(throws: BookUploadError.noValidImages) {
@@ -264,6 +271,7 @@ struct BookUploadUseCaseTests {
         }
     }
 
+    @MainActor
     @Test func testUploadBook_ocrFailure_throwsError() async throws {
         // Given
         let (ocrService, imageProcessingService, textSegmentationService, bookMetadataService, bookRepository) = createMockServices()
@@ -279,7 +287,7 @@ struct BookUploadUseCaseTests {
         let userId = UUID()
 
         // Mock valid image but OCR failure
-        imageProcessingService.validateResult = ImageValidationResult(isValid: true, issues: [], suggestions: [])
+        imageProcessingService.validateResult = ImageValidationResult(isValid: true, warnings: [], recommendations: [])
         imageProcessingService.processResult = createTestImage(width: 200, height: 200)
         ocrService.recognizeError = OCRError.visionError(NSError(domain: "test", code: 1))
 
@@ -314,10 +322,12 @@ private class MockOCRService: OCRService {
 }
 
 private class MockImageProcessingService: ImageProcessingService {
-    var validateResult: ImageValidationResult = .init(isValid: true, issues: [], suggestions: [])
+    var validateResult: ImageValidationResult = .init(isValid: true, warnings: [], recommendations: [])
     var validateResults: [ImageValidationResult] = []
     var processResult: UIImage?
     var saveResult: String = ""
+    var loadResult: UIImage?
+    var getImagesDirectoryResult: URL = URL(fileURLWithPath: "/mock/images")
 
     func validateImageForOCR(_ image: UIImage) -> ImageValidationResult {
         if !validateResults.isEmpty {
@@ -332,6 +342,18 @@ private class MockImageProcessingService: ImageProcessingService {
 
     func saveImageToStorage(_ image: UIImage, filename: String) throws -> String {
         return saveResult.isEmpty ? filename : saveResult
+    }
+
+    func loadImageFromStorage(filename: String) -> UIImage? {
+        return loadResult
+    }
+
+    func deleteImageFromStorage(filename: String) throws {
+        // Mock implementation - do nothing
+    }
+
+    func getImagesDirectory() -> URL {
+        return getImagesDirectoryResult
     }
 }
 

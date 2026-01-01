@@ -17,9 +17,8 @@ struct umbrellaApp: App {
         WindowGroup {
             if authViewModel.isAuthenticated {
                 // Main app content when authenticated
-                ContentView()
+                ContentView(authViewModel: authViewModel)
                     .environment(\.managedObjectContext, coreDataManager.viewContext)
-                    .environment(authViewModel)
             } else {
                 // Authentication screen when not authenticated
                 AuthScreen(viewModel: authViewModel)

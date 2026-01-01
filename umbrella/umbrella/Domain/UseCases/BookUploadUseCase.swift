@@ -195,7 +195,7 @@ class DefaultBookUploadUseCase: BookUploadUseCase {
 }
 
 /// Errors that can occur during book upload
-enum BookUploadError: LocalizedError {
+enum BookUploadError: LocalizedError, Equatable {
     case noValidImages
     case ocrFailed(page: Int, error: Error)
     case saveFailed(error: Error)
@@ -214,6 +214,24 @@ enum BookUploadError: LocalizedError {
             return "Book title is required"
         case .networkError:
             return "Network connection required for text processing"
+        }
+    }
+
+    // Equatable conformance for testing
+    static func == (lhs: BookUploadError, rhs: BookUploadError) -> Bool {
+        switch (lhs, rhs) {
+        case (.noValidImages, .noValidImages):
+            return true
+        case (.ocrFailed(let lhsPage, _), .ocrFailed(let rhsPage, _)):
+            return lhsPage == rhsPage
+        case (.saveFailed, .saveFailed):
+            return true // Don't compare the actual Error values
+        case (.invalidTitle, .invalidTitle):
+            return true
+        case (.networkError, .networkError):
+            return true
+        default:
+            return false
         }
     }
 }

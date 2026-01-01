@@ -70,8 +70,8 @@ struct DIContainer {
     @MainActor
     static let authViewModel = AuthViewModel(authUseCase: authUseCase)
 
-    @MainActor
-    static let libraryViewModel = LibraryViewModel(bookRepository: bookRepository, authViewModel: authViewModel)
+    // Note: LibraryViewModel is now created in ContentView to share the same authViewModel instance
+    // static let libraryViewModel = LibraryViewModel(bookRepository: bookRepository, authViewModel: authViewModel)
 
     // MARK: - Preview Instances (for SwiftUI Previews)
 

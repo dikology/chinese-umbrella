@@ -58,16 +58,17 @@ struct BookRepositoryTests {
         let user = UserEntity(context: context)
         user.id = userId
         user.email = "test@example.com"
-        user.createdDate = Date()
+        user.createdAt = Date()
         try context.save()
         return user
     }
 
     // MARK: - CRUD Tests
 
+    @MainActor
     @Test func testSaveBook_successfullySavesBook() async throws {
         // Given
-        let user = try await createTestUser()
+        let _ = try await createTestUser()
         let book = createTestBook()
 
         // When
@@ -82,6 +83,7 @@ struct BookRepositoryTests {
         #expect(savedBook.pages.count == book.pages.count)
     }
 
+    @MainActor
     @Test func testGetBook_byId_returnsCorrectBook() async throws {
         // Given
         let user = try await createTestUser()
@@ -97,6 +99,7 @@ struct BookRepositoryTests {
         #expect(retrievedBook?.title == savedBook.title)
     }
 
+    @MainActor
     @Test func testGetBooks_forUser_returnsUserBooksOnly() async throws {
         // Given
         let user1 = try await createTestUser()
@@ -112,17 +115,19 @@ struct BookRepositoryTests {
         let book1 = createTestBook(title: "User1 Book")
         let book2 = createTestBook(title: "User2 Book")
 
-        _ = try await repository.saveBook(book1, userId: user1.id)
+        let user1Id = try #require(user1.id, "User1 should have an ID")
+        _ = try await repository.saveBook(book1, userId: user1Id)
         _ = try await repository.saveBook(book2, userId: user2Id)
 
         // When
-        let user1Books = try await repository.getBooks(for: user1.id)
+        let user1Books = try await repository.getBooks(for: user1Id)
 
         // Then
         #expect(user1Books.count == 1)
         #expect(user1Books.first?.title == "User1 Book")
     }
 
+    @MainActor
     @Test func testUpdateBook_modifiesExistingBook() async throws {
         // Given
         let user = try await createTestUser()
@@ -156,6 +161,7 @@ struct BookRepositoryTests {
         #expect(result.tags == ["updated"])
     }
 
+    @MainActor
     @Test func testDeleteBook_removesBookFromStorage() async throws {
         // Given
         let user = try await createTestUser()
@@ -176,6 +182,7 @@ struct BookRepositoryTests {
 
     // MARK: - Search and Filter Tests
 
+    @MainActor
     @Test func testSearchBooks_byTitle_returnsMatchingBooks() async throws {
         // Given
         let user = try await createTestUser()
@@ -193,6 +200,7 @@ struct BookRepositoryTests {
         #expect(results.first?.title == "Chinese Literature")
     }
 
+    @MainActor
     @Test func testSearchBooksWithFilters_byGenre_returnsFilteredBooks() async throws {
         // Given
         let user = try await createTestUser()
@@ -212,6 +220,7 @@ struct BookRepositoryTests {
         #expect(results.first?.genre == .literature)
     }
 
+    @MainActor
     @Test func testSearchBooksWithFilters_byLanguage_returnsFilteredBooks() async throws {
         // Given
         let user = try await createTestUser()
@@ -231,6 +240,7 @@ struct BookRepositoryTests {
         #expect(results.first?.language == "zh-Hans")
     }
 
+    @MainActor
     @Test func testGetBooksByGenre_returnsCorrectBooks() async throws {
         // Given
         let user = try await createTestUser()
@@ -250,6 +260,7 @@ struct BookRepositoryTests {
         #expect(results.allSatisfy { $0.genre == .literature })
     }
 
+    @MainActor
     @Test func testGetBooksByLanguage_returnsCorrectBooks() async throws {
         // Given
         let user = try await createTestUser()
@@ -269,6 +280,7 @@ struct BookRepositoryTests {
         #expect(results.allSatisfy { $0.language == "zh-Hans" })
     }
 
+    @MainActor
     @Test func testGetBooksByProgressStatus_completedBooks() async throws {
         // Given
         let user = try await createTestUser()
@@ -311,6 +323,7 @@ struct BookRepositoryTests {
         #expect(completedBooks.first?.title == "Completed Book")
     }
 
+    @MainActor
     @Test func testGetRecentBooks_returnsMostRecentFirst() async throws {
         // Given
         let user = try await createTestUser()
@@ -321,35 +334,9 @@ struct BookRepositoryTests {
         var book3 = createTestBook(title: "Book 3")
 
         // Simulate different update times
-        book1 = AppBook(
-            id: book1.id,
-            title: book1.title,
-            author: book1.author,
-            pages: book1.pages,
-            currentPageIndex: book1.currentPageIndex,
-            isLocal: book1.isLocal,
-            updatedDate: Date().addingTimeInterval(-3600) // 1 hour ago
-        )
-
-        book2 = AppBook(
-            id: book2.id,
-            title: book2.title,
-            author: book2.author,
-            pages: book2.pages,
-            currentPageIndex: book2.currentPageIndex,
-            isLocal: book2.isLocal,
-            updatedDate: Date().addingTimeInterval(-1800) // 30 min ago
-        )
-
-        book3 = AppBook(
-            id: book3.id,
-            title: book3.title,
-            author: book3.author,
-            pages: book3.pages,
-            currentPageIndex: book3.currentPageIndex,
-            isLocal: book3.isLocal,
-            updatedDate: Date() // Now
-        )
+        book1.updatedDate = Date().addingTimeInterval(-3600) // 1 hour ago
+        book2.updatedDate = Date().addingTimeInterval(-1800) // 30 min ago
+        book3.updatedDate = Date() // Now
 
         _ = try await repository.saveBook(book1, userId: userId)
         _ = try await repository.saveBook(book2, userId: userId)
@@ -364,6 +351,7 @@ struct BookRepositoryTests {
         #expect(recentBooks.last?.title == "Book 2")  // Second most recent
     }
 
+    @MainActor
     @Test func testGetLibraryStatistics_calculatesCorrectStats() async throws {
         // Given
         let user = try await createTestUser()
@@ -384,9 +372,10 @@ struct BookRepositoryTests {
         #expect(stats.booksByGenre[.science] == 1)
     }
 
+    @MainActor
     @Test func testUpdateReadingProgress_updatesCurrentPageIndex() async throws {
         // Given
-        let user = try await createTestUser()
+        let _ = try await createTestUser()
         let book = createTestBook()
         let savedBook = try await repository.saveBook(book, userId: userId)
 
@@ -400,6 +389,7 @@ struct BookRepositoryTests {
 
     // MARK: - Error Handling Tests
 
+    @MainActor
     @Test func testGetBook_nonexistentId_returnsNil() async throws {
         // When
         let result = try await repository.getBook(by: UUID())
@@ -408,6 +398,7 @@ struct BookRepositoryTests {
         #expect(result == nil)
     }
 
+    @MainActor
     @Test func testUpdateBook_nonexistentBook_throwsError() async throws {
         // Given
         let nonexistentBook = createTestBook()
@@ -418,6 +409,7 @@ struct BookRepositoryTests {
         }
     }
 
+    @MainActor
     @Test func testDeleteBook_nonexistentBook_doesNotThrow() async throws {
         // When/Then - Should not throw for nonexistent book
         try await repository.deleteBook(UUID())
