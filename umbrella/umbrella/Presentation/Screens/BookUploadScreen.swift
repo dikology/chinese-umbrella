@@ -7,10 +7,17 @@
 
 import SwiftUI
 
+// Design System Imports
+
 /// Screen for uploading books with camera and photo picker options
 struct BookUploadScreen: View {
     @State private var viewModel: BookUploadViewModel
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var colors: AdaptiveColors {
+        AdaptiveColors(colorScheme: colorScheme)
+    }
 
     // Navigation state
     @State private var showCamera = false
@@ -27,16 +34,18 @@ struct BookUploadScreen: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
+            ZStack {
+                colors.background
+                    .ignoresSafeArea()
+
+                VStack(spacing: 0) {
                 // Header
                 VStack(spacing: 8) {
                     Text("Upload Book")
-                        .font(.title)
-                        .fontWeight(.bold)
+                        .titleStyle()
 
                     Text("Take photos of book pages or select from your library")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
+                        .bodySecondaryStyle()
                         .multilineTextAlignment(.center)
                 }
                 .padding(.horizontal)
@@ -44,27 +53,24 @@ struct BookUploadScreen: View {
                 .padding(.bottom, 16)
 
                 // Book metadata input
-                VStack(alignment: .leading, spacing: 16) {
-                    Text("Book Information")
-                        .font(.headline)
+                CardContainer {
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text("Book Information")
+                            .headingStyle()
 
-                    TextField("Book Title", text: $viewModel.bookTitle)
-                        .textFieldStyle(.roundedBorder)
-                        .padding(.horizontal)
+                        TextField("Book Title", text: $viewModel.bookTitle)
+                            .textFieldStyle()
 
-                    TextField("Author (Optional)", text: $viewModel.bookAuthor)
-                        .textFieldStyle(.roundedBorder)
-                        .padding(.horizontal)
+                        TextField("Author (Optional)", text: $viewModel.bookAuthor)
+                            .textFieldStyle()
+                    }
                 }
-                .padding(.vertical, 16)
-                .background(Color.gray.opacity(0.05))
-                .cornerRadius(12)
                 .padding(.horizontal)
 
                 // Upload options
                 VStack(spacing: 16) {
                     Text("Choose Upload Method")
-                        .font(.headline)
+                        .headingStyle()
                         .padding(.top, 16)
 
                     // Camera option
@@ -74,24 +80,22 @@ struct BookUploadScreen: View {
                         VStack(spacing: 12) {
                             Image(systemName: "camera")
                                 .font(.system(size: 48))
-                                .foregroundColor(.blue)
+                                .foregroundColor(colors.primary)
 
                             Text("Take Photos")
-                                .font(.title3)
-                                .fontWeight(.semibold)
+                                .subheadingStyle()
 
                             Text("Capture new photos of book pages")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
+                                .bodySecondaryStyle()
                                 .multilineTextAlignment(.center)
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 24)
-                        .background(Color.blue.opacity(0.1))
+                        .background(colors.blueTint)
                         .cornerRadius(12)
                         .overlay(
                             RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+                                .stroke(colors.primary.opacity(0.3), lineWidth: 1)
                         )
                     }
                     .padding(.horizontal)
@@ -103,24 +107,22 @@ struct BookUploadScreen: View {
                         VStack(spacing: 12) {
                             Image(systemName: "photo.on.rectangle.angled")
                                 .font(.system(size: 48))
-                                .foregroundColor(.green)
+                                .foregroundColor(colors.success)
 
                             Text("Select from Library")
-                                .font(.title3)
-                                .fontWeight(.semibold)
+                                .subheadingStyle()
 
                             Text("Choose existing photos from your device")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
+                                .bodySecondaryStyle()
                                 .multilineTextAlignment(.center)
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 24)
-                        .background(Color.green.opacity(0.1))
+                        .background(colors.greenTint)
                         .cornerRadius(12)
                         .overlay(
                             RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color.green.opacity(0.3), lineWidth: 1)
+                                .stroke(colors.success.opacity(0.3), lineWidth: 1)
                         )
                     }
                     .padding(.horizontal)
@@ -130,15 +132,14 @@ struct BookUploadScreen: View {
                 if viewModel.selectedImages.count > 0 {
                     VStack(spacing: 8) {
                         Text("\(viewModel.selectedImages.count) photo\(viewModel.selectedImages.count == 1 ? "" : "s") selected")
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
+                            .bodySecondaryStyle()
 
                         Button {
                             showPhotoReview = true
                         } label: {
                             Text("Review Photos")
-                                .font(.subheadline)
-                                .foregroundColor(.blue)
+                                .bodySecondaryStyle()
+                                .foregroundColor(colors.primary)
                         }
                     }
                     .padding(.top, 8)
@@ -148,33 +149,15 @@ struct BookUploadScreen: View {
 
                 // Upload button
                 if !viewModel.selectedImages.isEmpty {
-                    Button {
+                    PrimaryButton(
+                        title: viewModel.isUploading ? "Processing..." : "Upload Book",
+                        isLoading: viewModel.isUploading,
+                        isEnabled: !viewModel.bookTitle.isEmpty
+                    ) {
                         Task {
                             await viewModel.uploadBook()
                         }
-                    } label: {
-                        if viewModel.isUploading {
-                            HStack {
-                                ProgressView()
-                                    .tint(.white)
-                                Text("Processing...")
-                                    .font(.headline)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(Color.blue.opacity(0.6))
-                            .cornerRadius(12)
-                        } else {
-                            Text("Upload Book")
-                                .font(.headline)
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 16)
-                                .background(Color.blue)
-                                .cornerRadius(12)
-                        }
                     }
-                    .disabled(viewModel.isUploading || viewModel.bookTitle.isEmpty)
                     .padding(.horizontal)
                     .padding(.bottom, 20)
                 }
@@ -206,6 +189,7 @@ struct BookUploadScreen: View {
             .onChange(of: viewModel.uploadComplete) { oldValue, newValue in
                 if newValue {
                     dismiss()
+                }
                 }
             }
         }

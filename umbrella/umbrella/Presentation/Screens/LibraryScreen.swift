@@ -282,25 +282,25 @@ struct BookListRow: View {
                             Text("\(book.totalPages) pages")
                                 .captionStyle()
 
-                            if book.isCompleted {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundColor(colors.success)
-                                    .font(.caption)
-                            } else {
-                                Text("\(Int(book.readingProgress * 100))% read")
-                                    .captionStyle()
-                            }
+//                            if book.isCompleted {
+//                                Image(systemName: "checkmark.circle.fill")
+//                                    .foregroundColor(colors.success)
+//                                    .font(.caption)
+//                            } else {
+//                                Text("\(Int(book.readingProgress * 100))% read")
+//                                    .captionStyle()
+//                            }
                         }
                     }
 
                     Spacer()
 
                     // Progress indicator
-                    VStack {
-                        Spacer()
-                        CircularProgressIndicator(progress: book.readingProgress, size: 40)
-                        Spacer()
-                    }
+//                    VStack {
+//                        Spacer()
+//                        CircularProgressIndicator(progress: book.readingProgress, size: 40)
+//                        Spacer()
+//                    }
                 }
             }
         }
