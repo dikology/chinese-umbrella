@@ -175,16 +175,9 @@ class DefaultBookUploadUseCase: BookUploadUseCase {
     // MARK: - Private Methods
 
     private func segmentText(_ text: String) async throws -> [AppWordSegment] {
-        let words = try await textSegmentationService.segment(text: text)
-        return words.enumerated().map { index, word in
-            AppWordSegment(
-                word: word,
-                pinyin: nil, // Will be looked up separately
-                startIndex: index * 2, // Rough approximation
-                endIndex: index * 2 + word.count,
-                isMarked: false
-            )
-        }
+        // Use the improved segmentation service that returns proper position information
+        let segments = try await textSegmentationService.segmentWithPositions(text: text)
+        return segments
     }
 }
 
