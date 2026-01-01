@@ -9,7 +9,7 @@ import Foundation
 import CoreData
 
 /// Core Data entity for Book
-@objc(Book)
+@objc(CDBook)
 public class CDBook: NSManagedObject {
     @NSManaged public var id: UUID
     @NSManaged public var title: String

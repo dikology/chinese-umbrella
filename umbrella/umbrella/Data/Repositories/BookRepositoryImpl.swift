@@ -16,7 +16,7 @@ class BookRepositoryImpl: BookRepository {
         self.coreDataManager = coreDataManager
     }
 
-    func saveBook(_ book: AppBook) async throws -> AppBook {
+    func saveBook(_ book: AppBook, userId: UUID) async throws -> AppBook {
         let context = coreDataManager.viewContext
 
         return try await context.perform {
@@ -39,8 +39,16 @@ class BookRepositoryImpl: BookRepository {
                 bookEntity.createdDate = book.createdDate
                 bookEntity.update(from: book)
 
-                // Set owner relationship (assuming we have a current user)
-                // For now, we'll need to set this when we have user context
+                // Set owner relationship
+                let userFetchRequest = UserEntity.fetchRequest()
+                userFetchRequest.predicate = NSPredicate(format: "id == %@", userId as CVarArg)
+                userFetchRequest.fetchLimit = 1
+
+                if let userEntity = try context.fetch(userFetchRequest).first {
+                    bookEntity.owner = userEntity
+                } else {
+                    throw BookRepositoryError.saveFailed
+                }
             }
 
             // Save pages
@@ -78,7 +86,57 @@ class BookRepositoryImpl: BookRepository {
     }
 
     func updateBook(_ book: AppBook) async throws -> AppBook {
-        return try await saveBook(book)
+        let context = coreDataManager.viewContext
+
+        return try await context.perform {
+            // Get the existing book
+            let fetchRequest = CDBook.fetchRequest()
+            fetchRequest.predicate = NSPredicate(format: "id == %@", book.id as CVarArg)
+            fetchRequest.fetchLimit = 1
+
+            guard let existingBook = try context.fetch(fetchRequest).first else {
+                throw BookRepositoryError.bookNotFound
+            }
+
+            // Update the existing book
+            existingBook.update(from: book)
+
+            // Save pages (inline the savePages logic)
+            try self.savePagesInline(book.pages, for: existingBook, in: context)
+
+            try context.save()
+            return existingBook.toDomain()
+        }
+    }
+
+    // MARK: - Inline Helper Methods
+
+    private func savePagesInline(_ pages: [AppBookPage], for bookEntity: CDBook, in context: NSManagedObjectContext) throws {
+        // Remove existing pages
+        for page in bookEntity.pages {
+            context.delete(page)
+        }
+
+        // Create new pages
+        for page in pages {
+            let pageEntity = CDBookPage(context: context)
+            pageEntity.id = page.id
+            pageEntity.book = bookEntity
+            pageEntity.createdAt = Date()
+            pageEntity.update(from: page)
+
+            // Save word segments
+            try saveWordSegmentsInline(page.words, for: pageEntity, in: context)
+        }
+    }
+
+    private func saveWordSegmentsInline(_ segments: [AppWordSegment], for pageEntity: CDBookPage, in context: NSManagedObjectContext) throws {
+        for segment in segments {
+            let segmentEntity = CDWordSegment(context: context)
+            segmentEntity.id = segment.id
+            segmentEntity.page = pageEntity
+            segmentEntity.update(from: segment)
+        }
     }
 
     func deleteBook(_ bookId: UUID) async throws {

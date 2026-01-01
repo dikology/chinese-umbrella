@@ -30,6 +30,11 @@ final class LibraryViewModel {
     var showDeleteAlert = false
     var bookToDelete: AppBook?
 
+    // Computed properties for UI access
+    var currentUserId: UUID? {
+        authViewModel.currentUser?.id
+    }
+
     init(bookRepository: BookRepository, authViewModel: AuthViewModel) {
         self.bookRepository = bookRepository
         self.authViewModel = authViewModel

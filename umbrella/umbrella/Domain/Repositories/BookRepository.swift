@@ -10,7 +10,7 @@ import Foundation
 /// Repository protocol for book management operations
 protocol BookRepository {
     /// Save a new book to the library
-    func saveBook(_ book: AppBook) async throws -> AppBook
+    func saveBook(_ book: AppBook, userId: UUID) async throws -> AppBook
 
     /// Get a book by ID
     func getBook(by id: UUID) async throws -> AppBook?

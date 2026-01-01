@@ -9,7 +9,7 @@ import Foundation
 import CoreData
 
 /// Core Data entity for MarkedWord
-@objc(MarkedWord)
+@objc(CDMarkedWord)
 public class CDMarkedWord: NSManagedObject {
     @NSManaged public var id: UUID
     @NSManaged public var word: String

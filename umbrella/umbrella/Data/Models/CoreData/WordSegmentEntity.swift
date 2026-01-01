@@ -9,7 +9,7 @@ import Foundation
 import CoreData
 
 /// Core Data entity for WordSegment
-@objc(WordSegment)
+@objc(CDWordSegment)
 public class CDWordSegment: NSManagedObject {
     @NSManaged public var id: UUID
     @NSManaged public var word: String

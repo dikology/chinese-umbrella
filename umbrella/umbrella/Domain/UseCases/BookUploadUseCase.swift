@@ -11,7 +11,7 @@ import UIKit
 /// Protocol for book upload use case
 protocol BookUploadUseCase {
     /// Upload and process images into a book
-    func uploadBook(images: [UIImage], title: String, author: String?) async throws -> AppBook
+    func uploadBook(images: [UIImage], title: String, author: String?, userId: UUID) async throws -> AppBook
 
     /// Validate images before processing
     func validateImages(_ images: [UIImage]) -> [ImageValidationResult]
@@ -52,7 +52,7 @@ class DefaultBookUploadUseCase: BookUploadUseCase {
         self.bookRepository = bookRepository
     }
 
-    func uploadBook(images: [UIImage], title: String, author: String?) async throws -> AppBook {
+    func uploadBook(images: [UIImage], title: String, author: String?, userId: UUID) async throws -> AppBook {
         // Validate images first
         let validationResults = validateImages(images)
         let validImages = zip(images, validationResults)
@@ -112,7 +112,7 @@ class DefaultBookUploadUseCase: BookUploadUseCase {
         )
 
         // Save to repository
-        let savedBook = try await bookRepository.saveBook(book)
+        let savedBook = try await bookRepository.saveBook(book, userId: userId)
         return savedBook
     }
 

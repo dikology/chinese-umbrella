@@ -258,6 +258,7 @@ final class OCRProgressViewModel {
     private let images: [UIImage]
     private let bookTitle: String
     private let bookAuthor: String?
+    private let userId: UUID
 
     var totalPages: Int
     var completedPages = 0
@@ -273,11 +274,12 @@ final class OCRProgressViewModel {
 
     private var processingTask: Task<Void, Never>?
 
-    init(bookUploadUseCase: BookUploadUseCase, images: [UIImage], bookTitle: String, bookAuthor: String?) {
+    init(bookUploadUseCase: BookUploadUseCase, images: [UIImage], bookTitle: String, bookAuthor: String?, userId: UUID) {
         self.bookUploadUseCase = bookUploadUseCase
         self.images = images
         self.bookTitle = bookTitle
         self.bookAuthor = bookAuthor
+        self.userId = userId
         self.totalPages = images.count
 
         // Initialize page progress
@@ -327,7 +329,8 @@ final class OCRProgressViewModel {
             let book = try await bookUploadUseCase.uploadBook(
                 images: images,
                 title: bookTitle,
-                author: bookAuthor
+                author: bookAuthor,
+                userId: userId
             )
 
             // Update progress for each page
@@ -423,7 +426,8 @@ enum PageProcessingStatus {
         bookUploadUseCase: MockBookUploadUseCase(),
         images: sampleImages,
         bookTitle: "Sample Book",
-        bookAuthor: "Sample Author"
+        bookAuthor: "Sample Author",
+        userId: UUID()
     )
 
     return OCRProgressScreen(viewModel: viewModel)
@@ -431,7 +435,7 @@ enum PageProcessingStatus {
 
 /// Mock use case for preview
 private struct MockBookUploadUseCase: BookUploadUseCase {
-    func uploadBook(images: [UIImage], title: String, author: String?) async throws -> AppBook {
+    func uploadBook(images: [UIImage], title: String, author: String?, userId: UUID) async throws -> AppBook {
         try await Task.sleep(for: .seconds(2))
         return AppBook(title: title, author: author, pages: [])
     }

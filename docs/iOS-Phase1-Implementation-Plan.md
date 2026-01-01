@@ -289,7 +289,7 @@ final class LibraryViewModel {
     // MARK: Methods
     func uploadBook(pages: [UIImage], title: String, author: String?)
     func processOCR(images: [UIImage]) -> [String] // Extracted text per page
-    func saveBook(_ book: Book)
+    func saveBook(_ book: Book, userId: UUID)
     func deleteBook(_ book: Book)
     func fetchLibrary()
 }

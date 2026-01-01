@@ -17,8 +17,8 @@ struct BookUploadScreen: View {
     @State private var showPhotoPicker = false
     @State private var showPhotoReview = false
 
-    init(bookUploadUseCase: BookUploadUseCase) {
-        _viewModel = State(initialValue: BookUploadViewModel(bookUploadUseCase: bookUploadUseCase))
+    init(bookUploadUseCase: BookUploadUseCase, userId: UUID) {
+        _viewModel = State(initialValue: BookUploadViewModel(bookUploadUseCase: bookUploadUseCase, userId: userId))
     }
 
     var body: some View {
@@ -212,6 +212,7 @@ struct BookUploadScreen: View {
 @Observable
 final class BookUploadViewModel {
     private let bookUploadUseCase: BookUploadUseCase
+    private let userId: UUID
 
     var bookTitle = ""
     var bookAuthor = ""
@@ -221,8 +222,9 @@ final class BookUploadViewModel {
     var errorMessage = ""
     var uploadComplete = false
 
-    init(bookUploadUseCase: BookUploadUseCase) {
+    init(bookUploadUseCase: BookUploadUseCase, userId: UUID) {
         self.bookUploadUseCase = bookUploadUseCase
+        self.userId = userId
     }
 
     @MainActor
@@ -243,7 +245,8 @@ final class BookUploadViewModel {
             let book = try await bookUploadUseCase.uploadBook(
                 images: selectedImages,
                 title: bookTitle,
-                author: bookAuthor.isEmpty ? nil : bookAuthor
+                author: bookAuthor.isEmpty ? nil : bookAuthor,
+                userId: userId
             )
 
             print("Successfully uploaded book: \(book.title)")
@@ -265,7 +268,7 @@ final class BookUploadViewModel {
 #Preview {
     // Mock use case for preview
     struct MockBookUploadUseCase: BookUploadUseCase {
-        func uploadBook(images: [UIImage], title: String, author: String?) async throws -> AppBook {
+        func uploadBook(images: [UIImage], title: String, author: String?, userId: UUID) async throws -> AppBook {
             // Mock implementation
             return AppBook(title: title, author: author, pages: [])
         }
@@ -283,5 +286,5 @@ final class BookUploadViewModel {
         }
     }
 
-    return BookUploadScreen(bookUploadUseCase: MockBookUploadUseCase())
+    return BookUploadScreen(bookUploadUseCase: MockBookUploadUseCase(), userId: UUID())
 }

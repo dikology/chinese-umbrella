@@ -9,7 +9,7 @@ import Foundation
 import CoreData
 
 /// Core Data entity for BookPage
-@objc(BookPage)
+@objc(CDBookPage)
 public class CDBookPage: NSManagedObject {
     @NSManaged public var id: UUID
     @NSManaged public var pageNumber: Int16

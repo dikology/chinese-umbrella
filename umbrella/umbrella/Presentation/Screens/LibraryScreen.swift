@@ -125,7 +125,9 @@ struct LibraryScreen: View {
             }
             .navigationBarHidden(true)
             .sheet(isPresented: $showUploadSheet) {
-                BookUploadScreen(bookUploadUseCase: DIContainer.bookUploadUseCase)
+                if let userId = viewModel.currentUserId {
+                    BookUploadScreen(bookUploadUseCase: DIContainer.bookUploadUseCase, userId: userId)
+                }
             }
             .alert("Delete Book", isPresented: $viewModel.showDeleteAlert) {
                 Button("Cancel", role: .cancel) {
