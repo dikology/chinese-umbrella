@@ -7,12 +7,18 @@
 
 import Foundation
 import SwiftUI
+import AuthenticationServices
+
+/// Protocol for auth view model interface
+protocol AuthViewModelProtocol {
+    var currentUser: AppUser? { get }
+}
 
 /// ViewModel for the library screen managing book collections
 @Observable
 final class LibraryViewModel {
     private let bookRepository: BookRepository
-    private let authViewModel: AuthViewModel
+    private let authViewModel: AuthViewModelProtocol
 
     // Data
     var books: [AppBook] = []
@@ -35,7 +41,7 @@ final class LibraryViewModel {
         authViewModel.currentUser?.id
     }
 
-    init(bookRepository: BookRepository, authViewModel: AuthViewModel) {
+    init(bookRepository: BookRepository, authViewModel: AuthViewModelProtocol) {
         self.bookRepository = bookRepository
         self.authViewModel = authViewModel
     }
@@ -214,5 +220,205 @@ struct BookListItem {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .short
         return formatter.localizedString(for: book.updatedDate, relativeTo: Date())
+    }
+}
+
+// MARK: - Preview Support
+
+/// Mock BookRepository for previews
+private final class MockBookRepository: BookRepository {
+    private var books: [AppBook] = []
+
+    init() {
+        // Create sample books for preview
+        let userId = UUID()
+        let bookId1 = UUID()
+        let bookId2 = UUID()
+        let bookId3 = UUID()
+
+        books = [
+            AppBook(
+                id: bookId1,
+                title: "Journey to the West",
+                author: "Wu Cheng'en",
+                pages: [
+                    AppBookPage(
+                        bookId: bookId1,
+                        pageNumber: 1,
+                        originalImagePath: "/preview/page1.jpg",
+                        extractedText: "孙悟空大闹天宫",
+                        words: [
+                            AppWordSegment(word: "孙悟空", pinyin: "Sūn Wùkōng", startIndex: 0, endIndex: 3),
+                            AppWordSegment(word: "大闹", pinyin: "dànào", startIndex: 4, endIndex: 6),
+                            AppWordSegment(word: "天宫", pinyin: "tiāngōng", startIndex: 7, endIndex: 9)
+                        ]
+                    )
+                ],
+                currentPageIndex: 0,
+                isLocal: true,
+                language: "zh-Hans",
+                genre: .literature,
+                totalWords: 1250
+            ),
+            AppBook(
+                id: bookId2,
+                title: "Harry Potter and the Philosopher's Stone",
+                author: "J.K. Rowling",
+                pages: [
+                    AppBookPage(
+                        bookId: bookId2,
+                        pageNumber: 1,
+                        originalImagePath: "/preview/page1.jpg",
+                        extractedText: "Mr. and Mrs. Dursley, of number four, Privet Drive...",
+                        words: []
+                    )
+                ],
+                currentPageIndex: 5,
+                isLocal: false,
+                language: "en",
+                genre: .fiction,
+                totalWords: 76944
+            ),
+            AppBook(
+                id: bookId3,
+                title: "Modern Chinese Grammar",
+                author: "Various Authors",
+                pages: [
+                    AppBookPage(
+                        bookId: bookId3,
+                        pageNumber: 1,
+                        originalImagePath: "/preview/page1.jpg",
+                        extractedText: "学习中文语法",
+                        words: [
+                            AppWordSegment(word: "学习", pinyin: "xuéxí", startIndex: 0, endIndex: 2),
+                            AppWordSegment(word: "中文", pinyin: "Zhōngwén", startIndex: 3, endIndex: 5),
+                            AppWordSegment(word: "语法", pinyin: "yǔfǎ", startIndex: 6, endIndex: 8)
+                        ]
+                    )
+                ],
+                currentPageIndex: 15,
+                isLocal: true,
+                language: "zh-Hans",
+                genre: .education,
+                totalWords: 5200
+            )
+        ]
+    }
+
+    func saveBook(_ book: AppBook, userId: UUID) async throws -> AppBook {
+        books.append(book)
+        return book
+    }
+
+    func getBook(by id: UUID) async throws -> AppBook? {
+        books.first { $0.id == id }
+    }
+
+    func getBooks(for userId: UUID) async throws -> [AppBook] {
+        books
+    }
+
+    func updateBook(_ book: AppBook) async throws -> AppBook {
+        if let index = books.firstIndex(where: { $0.id == book.id }) {
+            books[index] = book
+        }
+        return book
+    }
+
+    func deleteBook(_ bookId: UUID) async throws {
+        books.removeAll { $0.id == bookId }
+    }
+
+    func searchBooks(query: String, userId: UUID) async throws -> [AppBook] {
+        books.filter { $0.title.lowercased().contains(query.lowercased()) }
+    }
+
+    func searchBooksWithFilters(query: String?, filters: BookSearchFilters, userId: UUID) async throws -> [AppBook] {
+        var filteredBooks = books
+
+        if let query = query, !query.isEmpty {
+            filteredBooks = filteredBooks.filter { $0.title.lowercased().contains(query.lowercased()) }
+        }
+
+        return filteredBooks
+    }
+
+    func getBooksByGenre(_ genre: BookGenre, userId: UUID) async throws -> [AppBook] {
+        books.filter { $0.genre == genre }
+    }
+
+    func getBooksByLanguage(_ language: String, userId: UUID) async throws -> [AppBook] {
+        books.filter { $0.language == language }
+    }
+
+    func getBooksByProgressStatus(_ status: ReadingProgressStatus, userId: UUID) async throws -> [AppBook] {
+        books.filter {
+            switch status {
+            case .notStarted: return $0.readingProgress == 0.0
+            case .inProgress: return $0.readingProgress > 0.0 && $0.readingProgress < 1.0
+            case .completed: return $0.readingProgress >= 1.0
+            }
+        }
+    }
+
+    func getRecentBooks(for userId: UUID, limit: Int) async throws -> [AppBook] {
+        Array(books.sorted { $0.updatedDate > $1.updatedDate }.prefix(limit))
+    }
+
+    func getLibraryStatistics(userId: UUID) async throws -> LibraryStatistics {
+        LibraryStatistics(
+            totalBooks: books.count,
+            totalWords: books.reduce(0) { $0 + ($1.totalWords ?? 0) },
+            totalReadingTimeMinutes: books.reduce(0) { $0 + ($1.estimatedReadingTimeMinutes ?? 0) },
+            completedBooks: books.filter { $0.isCompleted }.count,
+            booksByGenre: [:], // Simplified for preview
+            booksByLanguage: [:], // Simplified for preview
+            averageReadingProgress: books.isEmpty ? 0.0 : books.reduce(0.0) { $0 + $1.readingProgress } / Double(books.count)
+        )
+    }
+
+    func updateReadingProgress(bookId: UUID, pageIndex: Int) async throws {
+        // No-op for preview
+    }
+}
+
+
+// MARK: - Preview Instance
+
+/// Mock AuthViewModel for previews
+private final class MockAuthViewModel: AuthViewModelProtocol {
+    private let mockUser = AppUser(
+        id: UUID(),
+        email: "preview@example.com",
+        displayName: "Preview User",
+        hskLevel: 3,
+        vocabularyMasteryPct: 25.0
+    )
+
+    init() {}
+
+    var isAuthenticated: Bool { true }
+    var currentUser: AppUser? { mockUser }
+    var isLoading: Bool { false }
+    var errorMessage: String? { nil }
+
+    func signUp() async {}
+    func signIn() async {}
+    func signInWithApple(credential: ASAuthorizationAppleIDCredential) async {}
+    func logout() async {}
+}
+
+extension LibraryViewModel {
+    /// Preview instance with mock data for SwiftUI previews
+    static var preview: LibraryViewModel {
+        let viewModel = LibraryViewModel(
+            bookRepository: MockBookRepository(),
+            authViewModel: MockAuthViewModel()
+        )
+        // Load the mock books
+        Task {
+            await viewModel.loadBooks()
+        }
+        return viewModel
     }
 }

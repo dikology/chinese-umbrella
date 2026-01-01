@@ -308,19 +308,7 @@ struct EmptyLibraryView: View {
     }
 }
 
-// #Preview {  // Commented out for now - complex preview causing issues
-//     LibraryScreen(viewModel: LibraryViewModel.preview)
-// }
-
-/// Protocol for AuthViewModel (needed for mocking)
-protocol AuthViewModelProtocol {
-    var isAuthenticated: Bool { get }
-    var currentUser: AppUser? { get }
-    var isLoading: Bool { get }
-    var errorMessage: String? { get }
-
-    func signUp(email: String, password: String) async
-    func signIn(email: String, password: String) async
-    func signInWithApple(credential: ASAuthorizationAppleIDCredential) async
-    func logout()
+#Preview {
+    LibraryScreen(viewModel: LibraryViewModel.preview)
 }
+
