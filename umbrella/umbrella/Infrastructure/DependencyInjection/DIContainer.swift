@@ -25,6 +25,13 @@ struct DIContainer {
         bookMetadataService: bookMetadataService,
         bookRepository: bookRepository
     )
+
+    static let editBookUseCase = DefaultEditBookUseCase(
+        ocrService: ocrService,
+        imageProcessingService: imageProcessingService,
+        textSegmentationService: textSegmentationService,
+        bookRepository: bookRepository
+    )
     // static let readingUseCase = ReadingUseCase(repository: readingProgressRepository, dictionaryRepository: dictionaryRepository)
     // static let wordMarkingUseCase = WordMarkingUseCase(repository: wordMarkerRepository)
     // static let proficiencyCalculationUseCase = ProficiencyCalculationUseCase(repository: proficiencyRepository)

@@ -13,6 +13,8 @@ struct LibraryScreen: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var viewModel: LibraryViewModel
     @State private var showUploadSheet = false
+    @State private var showEditSheet = false
+    @State private var bookToEdit: AppBook?
     @State private var searchText = ""
     @State private var selectedBook: AppBook?
 
@@ -108,23 +110,37 @@ struct LibraryScreen: View {
 
                 // Book list or empty state
                 if viewModel.hasBooks {
-                    ScrollView {
-                        LazyVStack(spacing: 12) {
-                            ForEach(viewModel.displayBooks) { book in
-                                BookListRow(
-                                    book: book,
-                                    onSelect: {
-                                        selectedBook = book
-                                    },
-                                    onDelete: {
-                                        viewModel.showDeleteConfirmation(for: book)
-                                    }
-                                )
+                    List(viewModel.displayBooks) { book in
+                        BookListRow(
+                            book: book,
+                            onSelect: {
+                                selectedBook = book
+                            }
+                        )
+                        .listRowInsets(EdgeInsets())
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .swipeActions(edge: .leading) {
+                            Button(action: {
+                                LoggingService.shared.debug("LibraryScreen: Setting bookToEdit to book with title: \(book.title), pages: \(book.totalPages)")
+                                bookToEdit = book
+                                showEditSheet = true
+                            }) {
+                                Label("Edit", systemImage: "pencil")
+                            }
+                            .tint(colors.primary)
+                        }
+                        .swipeActions(edge: .trailing) {
+                            Button(role: .destructive, action: {
+                                viewModel.showDeleteConfirmation(for: book)
+                            }) {
+                                Label("Delete", systemImage: "trash")
                             }
                         }
-                        .padding(.horizontal)
-                        .padding(.vertical, 8)
                     }
+                    .listStyle(.plain)
+                    .padding(.horizontal)
+                    .padding(.vertical, 8)
                 } else {
                     EmptyLibraryView(message: viewModel.emptyStateMessage)
                 }
@@ -144,6 +160,31 @@ struct LibraryScreen: View {
                         }
                     )
                 }
+            }
+            .sheet(isPresented: $showEditSheet) {
+                if let book = bookToEdit {
+                    EditBookScreen(
+                        book: book,
+                        editBookUseCase: DIContainer.editBookUseCase,
+                        onBookEdited: {
+                            Task {
+                                await viewModel.loadBooks()
+                            }
+                        }
+                    )
+                } else {
+                    EmptyView()
+                }
+            }
+            .onChange(of: showEditSheet) { oldValue, newValue in
+                if newValue {
+                    if bookToEdit != nil {
+                        LoggingService.shared.debug("LibraryScreen: Presenting EditBookScreen for book: \(bookToEdit!.title)")
+                    } else {
+                        LoggingService.shared.warning("LibraryScreen: Attempting to show EditBookScreen but bookToEdit is nil")
+                    }
+                }
+            }
             }
             .alert("Delete Book", isPresented: $viewModel.showDeleteAlert) {
                 Button("Cancel", role: .cancel) {
@@ -197,7 +238,6 @@ struct FilterPill: View {
         }
     }
 }
-}
 
 /// Book list row component
 struct BookListRow: View {
@@ -205,7 +245,6 @@ struct BookListRow: View {
 
     let book: AppBook
     let onSelect: () -> Void
-    let onDelete: () -> Void
 
     private var colors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
@@ -243,34 +282,29 @@ struct BookListRow: View {
                             Text("\(book.totalPages) pages")
                                 .captionStyle()
 
-                            if book.isCompleted {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundColor(colors.success)
-                                    .font(.caption)
-                            } else {
-                                Text("\(Int(book.readingProgress * 100))% read")
-                                    .captionStyle()
-                            }
+//                            if book.isCompleted {
+//                                Image(systemName: "checkmark.circle.fill")
+//                                    .foregroundColor(colors.success)
+//                                    .font(.caption)
+//                            } else {
+//                                Text("\(Int(book.readingProgress * 100))% read")
+//                                    .captionStyle()
+//                            }
                         }
                     }
 
                     Spacer()
 
                     // Progress indicator
-                    VStack {
-                        Spacer()
-                        CircularProgressIndicator(progress: book.readingProgress, size: 40)
-                        Spacer()
-                    }
+//                    VStack {
+//                        Spacer()
+//                        CircularProgressIndicator(progress: book.readingProgress, size: 40)
+//                        Spacer()
+//                    }
                 }
             }
         }
         .buttonStyle(.plain)
-        .swipeActions(edge: .trailing) {
-            Button(role: .destructive, action: onDelete) {
-                Label("Delete", systemImage: "trash")
-            }
-        }
     }
 }
 
