@@ -158,9 +158,9 @@ struct ReadingScreen: View {
     }
 
     private func segmentedTextView(for page: AppBookPage) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
-            // Display segmented words as interactive buttons
-            LazyVGrid(columns: [GridItem(.adaptive(minimum: 28), spacing: 1)], spacing: 12) {
+        VStack(alignment: .leading, spacing: 12) {
+            // Display segmented words in natural flowing text layout
+            FlowingTextLayout {
                 ForEach(viewModel.segmentedWords) { wordSegment in
                     WordButton(
                         wordSegment: wordSegment,
@@ -182,6 +182,66 @@ struct ReadingScreen: View {
 }
 
 // MARK: - Supporting Views
+
+/// Custom layout that arranges word buttons in natural flowing text lines
+struct FlowingTextLayout: Layout {
+    let horizontalSpacing: CGFloat = 2 // Small spacing between words
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let containerWidth = proposal.width ?? .infinity
+        var height: CGFloat = 0
+        var currentLineWidth: CGFloat = 0
+        var maxLineHeight: CGFloat = 0
+
+        for (index, subview) in subviews.enumerated() {
+            let subviewSize = subview.sizeThatFits(.unspecified)
+            let spacing = index > 0 ? horizontalSpacing : 0
+
+            // If adding this view would exceed the line width, start a new line
+            if currentLineWidth + spacing + subviewSize.width > containerWidth && currentLineWidth > 0 {
+                height += maxLineHeight
+                currentLineWidth = subviewSize.width
+                maxLineHeight = subviewSize.height
+            } else {
+                currentLineWidth += spacing + subviewSize.width
+                maxLineHeight = max(maxLineHeight, subviewSize.height)
+            }
+        }
+
+        // Add the last line's height
+        height += maxLineHeight
+
+        return CGSize(width: containerWidth, height: height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var currentX: CGFloat = bounds.minX
+        var currentY: CGFloat = bounds.minY
+        var lineHeight: CGFloat = 0
+        let containerWidth = bounds.width
+
+        for (index, subview) in subviews.enumerated() {
+            let subviewSize = subview.sizeThatFits(.unspecified)
+            let spacing = index > 0 ? horizontalSpacing : 0
+
+            // If adding this view would exceed the line width, start a new line
+            if currentX - bounds.minX + spacing + subviewSize.width > containerWidth && currentX > bounds.minX {
+                currentY += lineHeight
+                currentX = bounds.minX
+                lineHeight = subviewSize.height
+            }
+
+            let xPosition = currentX + (index > 0 ? spacing : 0)
+            subview.place(
+                at: CGPoint(x: xPosition, y: currentY),
+                proposal: ProposedViewSize(width: subviewSize.width, height: subviewSize.height)
+            )
+
+            currentX = xPosition + subviewSize.width
+            lineHeight = max(lineHeight, subviewSize.height)
+        }
+    }
+}
 
 struct WordButton: View {
     @Environment(\.colorScheme) private var colorScheme
@@ -285,4 +345,37 @@ extension ReadingViewModel {
     )
 
     return ReadingScreen(book: mockBook)
+}
+
+#Preview("Flowing Text Layout") {
+    VStack(alignment: .leading, spacing: 20) {
+        Text("Before (Grid Layout - looks like columns):")
+            .font(.headline)
+
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 28), spacing: 1)], spacing: 12) {
+            ForEach(["你好", "世界", "学习", "中文", "这是", "一个", "测试", "句子", "。"], id: \.self) { word in
+                Text(word)
+                    .padding(.horizontal, 3)
+                    .padding(.vertical, 4)
+                    .background(Color.blue.opacity(0.1))
+                    .cornerRadius(4)
+            }
+        }
+        .frame(height: 120)
+
+        Text("After (Flowing Text Layout - natural reading flow):")
+            .font(.headline)
+
+        FlowingTextLayout {
+            ForEach(["你好", "世界", "学习", "中文", "这是", "一个", "测试", "句子", "。"], id: \.self) { word in
+                Text(word)
+                    .padding(.horizontal, 3)
+                    .padding(.vertical, 4)
+                    .background(Color.green.opacity(0.1))
+                    .cornerRadius(4)
+            }
+        }
+        .frame(height: 60)
+    }
+    .padding()
 }
