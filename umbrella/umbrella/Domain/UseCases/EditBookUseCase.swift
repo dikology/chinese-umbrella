@@ -34,6 +34,8 @@ class DefaultEditBookUseCase: EditBookUseCase {
     }
 
     func addPagesToBook(book: AppBook, newImages: [UIImage], updatedTitle: String?, updatedAuthor: String?) async throws -> AppBook {
+        LoggingService.shared.info("EditBookUseCase: Starting to add \(newImages.count) pages to book '\(book.title)' (current pages: \(book.totalPages))")
+
         // Validate images first
         let validationResults = validateImages(newImages)
         let validImages = zip(newImages, validationResults)
@@ -41,32 +43,41 @@ class DefaultEditBookUseCase: EditBookUseCase {
             .map { $0.0 }
 
         guard !validImages.isEmpty else {
+            LoggingService.shared.error("EditBookUseCase: No valid images found after validation")
             throw EditBookError.noValidImages
         }
 
         if validImages.count < newImages.count {
-            print("Warning: \(newImages.count - validImages.count) images were filtered out due to validation failures")
+            LoggingService.shared.warning("EditBookUseCase: \(newImages.count - validImages.count) images were filtered out due to validation failures")
         }
+
+        LoggingService.shared.debug("EditBookUseCase: Processing \(validImages.count) valid images")
 
         // Process images with OCR
         var processedImages: [ProcessedImage] = []
         for (index, image) in validImages.enumerated() {
             do {
+                LoggingService.shared.debug("EditBookUseCase: Processing image \(index + 1)/\(validImages.count)")
                 let processedImage = try await processImage(image)
                 processedImages.append(processedImage)
-                print("Processed new page \(index + 1)/\(validImages.count)")
+                LoggingService.shared.info("EditBookUseCase: Successfully processed new page \(index + 1)/\(validImages.count)")
             } catch {
-                print("Failed to process new page \(index + 1): \(error)")
+                LoggingService.shared.error("EditBookUseCase: Failed to process new page \(index + 1): \(error)")
                 throw EditBookError.ocrFailed(page: index + 1, error: error)
             }
         }
+
+        LoggingService.shared.debug("EditBookUseCase: Creating \(processedImages.count) new pages starting from page \(book.totalPages + 1)")
 
         // Create new book pages starting from the next page number
         var newPages: [AppBookPage] = []
         let startingPageNumber = book.totalPages + 1
 
+        LoggingService.shared.debug("EditBookUseCase: Creating pages starting from page number \(startingPageNumber)")
+
         for (index, processedImage) in processedImages.enumerated() {
             // Segment the text for this page
+            LoggingService.shared.debug("EditBookUseCase: Segmenting text for page \(startingPageNumber + index)")
             let segmentedWords = try await segmentText(processedImage.extractedText)
 
             let page = AppBookPage(
@@ -78,10 +89,13 @@ class DefaultEditBookUseCase: EditBookUseCase {
                 wordsMarked: []
             )
             newPages.append(page)
+            LoggingService.shared.debug("EditBookUseCase: Created page \(page.pageNumber) with \(segmentedWords.count) words")
         }
 
         // Create updated book with new pages and metadata
         let allPages = book.pages + newPages
+        LoggingService.shared.info("EditBookUseCase: Combined book now has \(allPages.count) pages total (\(book.pages.count) original + \(newPages.count) new)")
+
         let finalTitle = updatedTitle ?? book.title
         let finalAuthor = updatedAuthor ?? book.author
         let updatedBook = AppBook(
@@ -100,8 +114,13 @@ class DefaultEditBookUseCase: EditBookUseCase {
             tags: book.tags
         )
 
+        LoggingService.shared.info("EditBookUseCase: Calling bookRepository.updateBook with book containing \(updatedBook.pages.count) pages")
+
         // Update via repository
         let savedBook = try await bookRepository.updateBook(updatedBook)
+
+        LoggingService.shared.info("EditBookUseCase: Successfully updated book. Final page count: \(savedBook.totalPages)")
+
         return savedBook
     }
 

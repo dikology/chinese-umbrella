@@ -181,6 +181,94 @@ struct BookRepositoryTests {
     }
 
     @MainActor
+    @Test func testUpdateBook_addsMultiplePages() async throws {
+        // Given
+        let _ = try await createTestUser()
+        let originalBook = createTestBook(title: "Original Book", totalWords: 100)
+        let savedBook = try await repository.saveBook(originalBook, userId: userId)
+
+        // Verify original book has expected page count
+        #expect(savedBook.totalPages == 1)
+
+        // Create additional pages to add
+        let page2 = AppBookPage(
+            bookId: savedBook.id,
+            pageNumber: 2,
+            originalImagePath: "/path/to/page2.jpg",
+            extractedText: "This is page 2 content",
+            words: [
+                AppWordSegment(word: "This", startIndex: 0, endIndex: 4),
+                AppWordSegment(word: "is", startIndex: 5, endIndex: 7),
+                AppWordSegment(word: "page", startIndex: 8, endIndex: 12),
+                AppWordSegment(word: "2", startIndex: 13, endIndex: 14)
+            ]
+        )
+
+        let page3 = AppBookPage(
+            bookId: savedBook.id,
+            pageNumber: 3,
+            originalImagePath: "/path/to/page3.jpg",
+            extractedText: "This is page 3 content",
+            words: [
+                AppWordSegment(word: "This", startIndex: 0, endIndex: 4),
+                AppWordSegment(word: "is", startIndex: 5, endIndex: 7),
+                AppWordSegment(word: "page", startIndex: 8, endIndex: 12),
+                AppWordSegment(word: "3", startIndex: 13, endIndex: 14)
+            ]
+        )
+
+        let page4 = AppBookPage(
+            bookId: savedBook.id,
+            pageNumber: 4,
+            originalImagePath: "/path/to/page4.jpg",
+            extractedText: "This is page 4 content",
+            words: [
+                AppWordSegment(word: "This", startIndex: 0, endIndex: 4),
+                AppWordSegment(word: "is", startIndex: 5, endIndex: 7),
+                AppWordSegment(word: "page", startIndex: 8, endIndex: 12),
+                AppWordSegment(word: "4", startIndex: 13, endIndex: 14)
+            ]
+        )
+
+        // Combine original pages with new pages
+        let allPages = savedBook.pages + [page2, page3, page4]
+
+        let updatedBook = AppBook(
+            id: savedBook.id,
+            title: savedBook.title,
+            author: savedBook.author,
+            pages: allPages,
+            currentPageIndex: savedBook.currentPageIndex,
+            isLocal: savedBook.isLocal,
+            language: savedBook.language,
+            genre: savedBook.genre,
+            description: savedBook.description,
+            totalWords: savedBook.totalWords,
+            estimatedReadingTimeMinutes: savedBook.estimatedReadingTimeMinutes,
+            difficulty: savedBook.difficulty,
+            tags: savedBook.tags
+        )
+
+        // When
+        let result = try await repository.updateBook(updatedBook)
+
+        // Then
+        #expect(result.title == "Original Book")
+        #expect(result.totalPages == 4, "Book should now have 4 pages total (1 original + 3 added)")
+        #expect(result.pages.count == 4, "Pages array should contain 4 pages")
+
+        // Verify page ordering by page number
+        let pageNumbers = result.pages.map { $0.pageNumber }
+        #expect(pageNumbers == [1, 2, 3, 4], "Pages should be ordered by page number")
+
+        // Verify specific pages content
+        #expect(result.pages[0].extractedText == "这是第一页的内容", "Original page should be preserved")
+        #expect(result.pages[1].extractedText == "This is page 2 content", "Page 2 should have correct content")
+        #expect(result.pages[2].extractedText == "This is page 3 content", "Page 3 should have correct content")
+        #expect(result.pages[3].extractedText == "This is page 4 content", "Page 4 should have correct content")
+    }
+
+    @MainActor
     @Test func testDeleteBook_removesBookFromStorage() async throws {
         // Given
         let _ = try await createTestUser()

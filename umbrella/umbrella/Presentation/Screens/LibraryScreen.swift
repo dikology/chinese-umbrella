@@ -11,7 +11,7 @@ import AuthenticationServices
 /// Main library screen showing user's book collection
 struct LibraryScreen: View {
     @Environment(\.colorScheme) private var colorScheme
-    @State private var viewModel: LibraryViewModel
+    let viewModel: LibraryViewModel
     @State private var showUploadSheet = false
     @State private var showEditSheet = false
     @State private var bookToEdit: AppBook?
@@ -23,7 +23,7 @@ struct LibraryScreen: View {
     }
 
     init(viewModel: LibraryViewModel) {
-        _viewModel = State(initialValue: viewModel)
+        self.viewModel = viewModel
     }
 
     var body: some View {
@@ -114,6 +114,7 @@ struct LibraryScreen: View {
                         BookListRow(
                             book: book,
                             onSelect: {
+                                LoggingService.shared.debug("LibraryScreen: Book selected: '\(book.title)' with \(book.totalPages) pages")
                                 selectedBook = book
                             }
                         )
@@ -167,8 +168,10 @@ struct LibraryScreen: View {
                         book: book,
                         editBookUseCase: DIContainer.editBookUseCase,
                         onBookEdited: {
+                            LoggingService.shared.debug("LibraryScreen: onBookEdited callback triggered")
                             Task {
                                 await viewModel.loadBooks()
+                                LoggingService.shared.debug("LibraryScreen: loadBooks completed after book edit")
                             }
                         }
                     )
@@ -186,7 +189,10 @@ struct LibraryScreen: View {
                 }
             }
             }
-            .alert("Delete Book", isPresented: $viewModel.showDeleteAlert) {
+            .alert("Delete Book", isPresented: Binding(
+                get: { viewModel.showDeleteAlert },
+                set: { viewModel.showDeleteAlert = $0 }
+            )) {
                 Button("Cancel", role: .cancel) {
                     viewModel.cancelDelete()
                 }

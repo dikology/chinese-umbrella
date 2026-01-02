@@ -82,8 +82,11 @@ final class EditBookViewModel {
         isEditing = true
 
         do {
+            LoggingService.shared.info("EditBookViewModel: Starting edit with \(pageList.count) pages to add to book '\(existingBook.title)'")
+
             // Extract UIImages from PageItems for upload
             let images = pageList.map { $0.uiImage }
+            LoggingService.shared.debug("EditBookViewModel: Extracted \(images.count) images from pageList")
 
             // Add new pages with updated metadata
             let editedBook = try await editBookUseCase.addPagesToBook(
@@ -93,7 +96,7 @@ final class EditBookViewModel {
                 updatedAuthor: bookAuthor.isEmpty ? nil : bookAuthor
             )
 
-            LoggingService.shared.info("Successfully edited book: \(editedBook.title) (added \(pageList.count) pages)")
+            LoggingService.shared.info("EditBookViewModel: Successfully edited book: \(editedBook.title) (added \(pageList.count) pages, final total: \(editedBook.totalPages))")
             editComplete = true
 
             // Notify parent view that a book was edited

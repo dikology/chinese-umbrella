@@ -200,12 +200,11 @@ final class ReadingViewModel {
     }
 
     private func updateBookProgress() async {
-        guard var book = currentBook else { return }
+        guard let book = currentBook else { return }
 
-        book.currentPageIndex = currentPageIndex
-
+        // Only update the reading progress, not the entire book structure
         do {
-            try await bookRepository.updateBook(book)
+            try await bookRepository.updateReadingProgress(bookId: book.id, pageIndex: currentPageIndex)
         } catch {
             // Log error but don't show to user for progress updates
             print("Failed to update book progress: \(error)")

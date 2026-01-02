@@ -32,6 +32,37 @@ class CoreDataManager {
 
         if inMemory {
             container.persistentStoreDescriptions.first!.url = URL(fileURLWithPath: "/dev/null")
+        } else {
+            // Load persistent stores for regular operation
+            container.loadPersistentStores { storeDescription, error in
+                if let error = error as NSError? {
+                    // Handle different error scenarios appropriately
+                    let errorMessage = """
+                    Core Data load error: \(error.localizedDescription)
+                    Code: \(error.code)
+                    Domain: \(error.domain)
+
+                    Possible causes:
+                    • The parent directory does not exist or cannot be created
+                    • The persistent store is not accessible due to permissions
+                    • The device is out of space
+                    • The store could not be migrated to the current model version
+
+                    User Info: \(error.userInfo)
+                    """
+
+                    // In development, we can be more aggressive with fatal errors
+                    // In production, implement proper error recovery
+                    fatalError(errorMessage)
+                }
+            }
+
+            // Enable automatic merging of changes from parent contexts
+            container.viewContext.automaticallyMergesChangesFromParent = true
+            container.viewContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+
+            // Enable undo management for better data integrity
+            container.viewContext.undoManager = UndoManager()
         }
     }
 
