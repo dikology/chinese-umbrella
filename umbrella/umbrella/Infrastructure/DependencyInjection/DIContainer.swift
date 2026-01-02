@@ -57,7 +57,7 @@ struct DIContainer {
     static let keychainService = KeychainService()
     static let ocrService = AppleVisionOCRService()
     static let imageProcessingService = DefaultImageProcessingService()
-    static let textSegmentationService = LocalTextSegmentationService()
+    static let textSegmentationService = LocalTextSegmentationService(dictionaryService: dictionaryService)
     // static let notificationService = NotificationService()
     // static let storageService = FileSystemStorageService()
     // static let loggingService = ConsoleLoggingService()

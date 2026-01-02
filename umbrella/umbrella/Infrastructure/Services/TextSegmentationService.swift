@@ -19,8 +19,15 @@ protocol TextSegmentationService {
 
 /// Local segmentation service using Apple's NaturalLanguage framework
 /// Phase 1 implementation - provides accurate Chinese word segmentation locally
+/// Enhanced to use dictionary-based segmentation for multi-character words
 /// In Phase 2, this can be enhanced with HanLP for even better accuracy
 class LocalTextSegmentationService: TextSegmentationService {
+    private let dictionaryService: DictionaryService?
+
+    init(dictionaryService: DictionaryService? = nil) {
+        self.dictionaryService = dictionaryService
+    }
+
     // Chinese and common punctuation that should be preserved as separate tokens
     private let punctuationSet: CharacterSet = {
         var set = CharacterSet.punctuationCharacters
@@ -141,41 +148,97 @@ class LocalTextSegmentationService: TextSegmentationService {
         return segments
     }
 
-    /// Segment Chinese text into individual characters for language learning
+    /// Segment Chinese text using dictionary-based longest-match algorithm
+    /// Tries to match multi-character words from CEDICT before falling back to single characters
     private func segmentChineseText(_ text: String) -> [AppWordSegment] {
         var segments: [AppWordSegment] = []
         var currentIndex = 0
 
-        for char in text {
-            if char.isWhitespace || char.isNewline {
-                // Skip whitespace for Chinese text (unlike punctuation which we want to preserve)
+        while currentIndex < text.count {
+            let remainingText = String(text[text.index(text.startIndex, offsetBy: currentIndex)...])
+
+            // Skip whitespace
+            if let firstChar = remainingText.first, firstChar.isWhitespace || firstChar.isNewline {
                 currentIndex += 1
                 continue
             }
 
-            // Check if this is punctuation
-            if char.unicodeScalars.allSatisfy({ punctuationSet.contains($0) }) {
+            // Check if current character is punctuation
+            if let firstChar = remainingText.first,
+               firstChar.unicodeScalars.allSatisfy({ punctuationSet.contains($0) }) {
                 segments.append(AppWordSegment(
-                    word: String(char),
+                    word: String(firstChar),
                     pinyin: nil,
                     startIndex: currentIndex,
                     endIndex: currentIndex + 1,
                     isMarked: false
                 ))
-            } else {
-                // Chinese character
-                segments.append(AppWordSegment(
-                    word: String(char),
-                    pinyin: nil,
-                    startIndex: currentIndex,
-                    endIndex: currentIndex + 1,
-                    isMarked: false
-                ))
+                currentIndex += 1
+                continue
             }
-            currentIndex += 1
+
+            // Try to find the longest matching word from dictionary
+            let matchedWord = findLongestDictionaryMatch(in: remainingText)
+            let wordLength = matchedWord.count
+
+            segments.append(AppWordSegment(
+                word: matchedWord,
+                pinyin: nil,
+                startIndex: currentIndex,
+                endIndex: currentIndex + wordLength,
+                isMarked: false
+            ))
+
+            currentIndex += wordLength
         }
 
         return segments
+    }
+
+    /// Find the longest word match from the dictionary starting from the current position
+    /// Tries 4-character, 3-character, 2-character, then falls back to single character
+    private func findLongestDictionaryMatch(in text: String) -> String {
+        // Try 4-character words first (common for idioms)
+        if text.count >= 4 {
+            let fourCharWord = String(text.prefix(4))
+            if isValidDictionaryWord(fourCharWord) {
+                return fourCharWord
+            }
+        }
+
+        // Try 3-character words
+        if text.count >= 3 {
+            let threeCharWord = String(text.prefix(3))
+            if isValidDictionaryWord(threeCharWord) {
+                return threeCharWord
+            }
+        }
+
+        // Try 2-character words
+        if text.count >= 2 {
+            let twoCharWord = String(text.prefix(2))
+            if isValidDictionaryWord(twoCharWord) {
+                return twoCharWord
+            }
+        }
+
+        // Fall back to single character
+        return String(text.prefix(1))
+    }
+
+    /// Check if a word exists in the dictionary
+    private func isValidDictionaryWord(_ word: String) -> Bool {
+        guard let dictionary = dictionaryService else {
+            // If no dictionary service available, only allow single characters
+            return word.count == 1
+        }
+
+        // Only check dictionary for multi-character words
+        if word.count == 1 {
+            return true // Single characters are always valid
+        }
+
+        return dictionary.lookup(word: word) != nil
     }
 
     /// Process intermediate text (between words) into individual segments
