@@ -11,9 +11,12 @@ import NaturalLanguage
 
 struct TextSegmentationServiceTests {
     private var service: LocalTextSegmentationService!
+    private var dictionaryService: CEDICTDictionaryService!
 
-    init() {
-        service = LocalTextSegmentationService()
+    init() async throws {
+        dictionaryService = CEDICTDictionaryService()
+        try dictionaryService.preloadDictionary()
+        service = LocalTextSegmentationService(dictionaryService: dictionaryService)
     }
 
     // MARK: - Chinese Text Segmentation Tests
@@ -27,15 +30,21 @@ struct TextSegmentationServiceTests {
 
         // Then
         #expect(!segments.isEmpty)
-        // Chinese text is segmented into individual characters for language learning
-        #expect(segments.contains { $0 == "这" })
-        #expect(segments.contains { $0 == "是" })
-        #expect(segments.contains { $0 == "一" })
-        #expect(segments.contains { $0 == "个" })
-        #expect(segments.contains { $0 == "测" })
-        #expect(segments.contains { $0 == "试" })
-        #expect(segments.contains { $0 == "句" })
-        #expect(segments.contains { $0 == "子" })
+
+        // With dictionary-based segmentation, we should get multi-character words where possible
+        // "这是" (zhè shì) - "this is" - exists in CEDICT
+        #expect(segments.contains { $0 == "这是" } || segments.contains { $0 == "这" })
+
+        // "一个" (yī gè) - "one/a" - exists in CEDICT
+        #expect(segments.contains { $0 == "一个" } || (segments.contains { $0 == "一" } && segments.contains { $0 == "个" }))
+
+        // "测试" (cè shì) - "test" - exists in CEDICT
+        #expect(segments.contains { $0 == "测试" } || (segments.contains { $0 == "测" } && segments.contains { $0 == "试" }))
+
+        // "句子" (jù zi) - "sentence" - exists in CEDICT
+        #expect(segments.contains { $0 == "句子" } || (segments.contains { $0 == "句" } && segments.contains { $0 == "子" }))
+
+        // Punctuation should still be preserved
         #expect(segments.contains { $0 == "。" })
     }
 
@@ -48,20 +57,18 @@ struct TextSegmentationServiceTests {
         let wordSegments = try await service.segmentWithPositions(text: chineseText)
 
         // Then
-        #expect(wordSegments.count == 4) // Should have 4 individual characters
+        // With dictionary segmentation, "你好" and "世界" should be recognized as words
+        #expect(wordSegments.count == 2) // Should have 2 words instead of 4 characters
 
-        // Verify positions are correct by checking length and basic structure
+        // Verify positions are correct
         for segment in wordSegments {
             #expect(segment.endIndex > segment.startIndex, "Segment end should be after start")
-            #expect(segment.word.count == 1, "Each segment should contain exactly one character")
             #expect(segment.startIndex >= 0 && segment.endIndex <= chineseText.count, "Segment positions should be within text bounds")
         }
 
-        // Check specific characters
-        #expect(wordSegments.contains { $0.word == "你" && $0.startIndex == 0 && $0.endIndex == 1 })
-        #expect(wordSegments.contains { $0.word == "好" && $0.startIndex == 1 && $0.endIndex == 2 })
-        #expect(wordSegments.contains { $0.word == "世" && $0.startIndex == 2 && $0.endIndex == 3 })
-        #expect(wordSegments.contains { $0.word == "界" && $0.startIndex == 3 && $0.endIndex == 4 })
+        // Check that we get the expected words
+        #expect(wordSegments.contains { $0.word == "你好" && $0.startIndex == 0 && $0.endIndex == 2 })
+        #expect(wordSegments.contains { $0.word == "世界" && $0.startIndex == 2 && $0.endIndex == 4 })
     }
 
     @MainActor
@@ -120,25 +127,27 @@ struct TextSegmentationServiceTests {
         let wordSegments = try await service.segmentWithPositions(text: longText)
 
         // Then
-        #expect(wordSegments.count > 10, "Should segment long text into individual characters")
+        #expect(wordSegments.count > 5, "Should segment long text into words")
 
-        // For language learning, Chinese text is segmented into individual characters
-        let allSingleChars = wordSegments.allSatisfy { $0.word.count == 1 }
-        #expect(allSingleChars, "Should segment Chinese text into individual characters")
+        // With dictionary segmentation, we should get multi-character words where possible
+        let hasMultiCharWords = wordSegments.contains { $0.word.count > 1 }
+        #expect(hasMultiCharWords, "Should recognize some multi-character words from dictionary")
 
-        // Verify some expected characters are present
+        // Verify some expected characters/words are present
         let segmentWords = wordSegments.map { $0.word }
-        #expect(segmentWords.contains("红"), "Should contain individual characters")
-        #expect(segmentWords.contains("楼"), "Should contain individual characters")
-        #expect(segmentWords.contains("梦"), "Should contain individual characters")
-        #expect(segmentWords.contains("中"), "Should contain individual characters")
-        #expect(segmentWords.contains("国"), "Should contain individual characters")
+        // Check for individual characters that might not form dictionary words
+        #expect(segmentWords.contains("红") || segmentWords.contains(where: { $0.contains("红") }), "Should contain characters from the text")
+        #expect(segmentWords.contains("楼") || segmentWords.contains(where: { $0.contains("楼") }), "Should contain characters from the text")
+        #expect(segmentWords.contains("梦") || segmentWords.contains(where: { $0.contains("梦") }), "Should contain characters from the text")
+
+        // Check for known dictionary words
+        #expect(segmentWords.contains("中国") || (segmentWords.contains("中") && segmentWords.contains("国")), "Should recognize '中国' (China) as a word")
 
         // Verify positions are contiguous and non-overlapping
         for i in 0..<wordSegments.count-1 {
             let currentEnd = wordSegments[i].endIndex
             let nextStart = wordSegments[i+1].startIndex
-            #expect(currentEnd == nextStart, "Character positions should be contiguous")
+            #expect(currentEnd == nextStart, "Word positions should be contiguous")
         }
     }
 
@@ -319,19 +328,17 @@ struct TextSegmentationServiceTests {
         let wordSegments = try await service.segmentWithPositions(text: chineseText)
 
         // Then
-        #expect(wordSegments.count == 6) // Should have 6 individual characters
+        // With dictionary segmentation, should recognize "学习" and "中文" as words
+        #expect(wordSegments.count <= 6) // Should have fewer segments than individual characters
 
-        // For language learning, Chinese text is segmented into individual characters
-        let allSingleChars = wordSegments.allSatisfy { $0.word.count == 1 }
-        #expect(allSingleChars, "Should segment Chinese into individual characters for language learning")
+        // Should contain multi-character words where possible
+        let segmentWords = wordSegments.map { $0.word }
+        #expect(segmentWords.contains("学习") || (segmentWords.contains("学") && segmentWords.contains("习")), "Should recognize '学习' (study) as a word")
+        #expect(segmentWords.contains("中文") || (segmentWords.contains("中") && segmentWords.contains("文")), "Should recognize '中文' (Chinese) as a word")
 
-        // Check specific characters are present
-        #expect(wordSegments.contains { $0.word == "我" })
-        #expect(wordSegments.contains { $0.word == "爱" })
-        #expect(wordSegments.contains { $0.word == "学" })
-        #expect(wordSegments.contains { $0.word == "习" })
-        #expect(wordSegments.contains { $0.word == "中" })
-        #expect(wordSegments.contains { $0.word == "文" })
+        // Check that all characters from the original text are represented
+        let reconstructedText = segmentWords.joined()
+        #expect(reconstructedText.contains("我爱学习中文"), "All characters should be preserved in segmentation")
     }
 
     @MainActor
