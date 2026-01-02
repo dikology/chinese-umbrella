@@ -94,30 +94,55 @@ class AppleVisionOCRService: OCRService {
     /// - Parameter textBlocks: Array of text blocks to sort
     /// - Returns: Sorted array of text blocks in reading order
     private func sortTextBlocksByReadingOrder(_ textBlocks: [TextBlock]) -> [TextBlock] {
-        // Vision API uses normalized coordinates (0.0-1.0) with origin at bottom-left
-        // We need to sort by:
-        // 1. Top position (descending - higher Y = top of screen)
-        // 2. Left position (ascending - lower X = left side)
+        guard !textBlocks.isEmpty else { return [] }
         
-        // Calculate the top Y coordinate for each block
-        // boundingBox.origin.y is the bottom-left corner, so top = origin.y + height
-        return textBlocks.sorted { block1, block2 in
-            let top1 = block1.boundingBox.origin.y + block1.boundingBox.height
-            let top2 = block2.boundingBox.origin.y + block2.boundingBox.height
-            let left1 = block1.boundingBox.origin.x
-            let left2 = block2.boundingBox.origin.x
+        // Vision API uses normalized coordinates (0.0-1.0) with origin at bottom-left
+        // Calculate the center Y coordinate for each block for better line grouping
+        struct BlockWithPosition {
+            let block: TextBlock
+            let centerY: CGFloat
+            let centerX: CGFloat
+            let top: CGFloat
+        }
+        
+        let blocksWithPositions = textBlocks.map { block in
+            let centerY = block.boundingBox.origin.y + (block.boundingBox.height / 2)
+            let centerX = block.boundingBox.origin.x + (block.boundingBox.width / 2)
+            let top = block.boundingBox.origin.y + block.boundingBox.height
+            return BlockWithPosition(block: block, centerY: centerY, centerX: centerX, top: top)
+        }
+        
+        // Calculate average block height for dynamic tolerance
+        let avgHeight = textBlocks.reduce(0.0) { $0 + $1.boundingBox.height } / CGFloat(textBlocks.count)
+        // Use half the average height as tolerance for same-line detection
+        let rowTolerance = avgHeight * 0.5
+        
+        // Group blocks into lines using a more sophisticated clustering approach
+        var lines: [[BlockWithPosition]] = []
+        var remainingBlocks = blocksWithPositions.sorted { $0.top > $1.top }
+        
+        while !remainingBlocks.isEmpty {
+            let firstBlock = remainingBlocks.removeFirst()
+            var currentLine = [firstBlock]
             
-            // Tolerance for considering blocks on the same "row" (within 5% of image height)
-            let rowTolerance: CGFloat = 0.05
-            
-            // If blocks are on the same row (similar top Y), sort by left X
-            if abs(top1 - top2) < rowTolerance {
-                return left1 < left2
+            // Find all blocks that belong to the same line
+            // A block belongs to the same line if its centerY is within tolerance of the line's centerY
+            remainingBlocks.removeAll { candidate in
+                let yDiff = abs(candidate.centerY - firstBlock.centerY)
+                if yDiff < rowTolerance {
+                    currentLine.append(candidate)
+                    return true
+                }
+                return false
             }
             
-            // Otherwise, sort by top Y (descending - higher Y first = top first)
-            return top1 > top2
+            // Sort blocks within the line from left to right
+            currentLine.sort { $0.centerX < $1.centerX }
+            lines.append(currentLine)
         }
+        
+        // Lines are already sorted top-to-bottom, now flatten them
+        return lines.flatMap { $0.map { $0.block } }
     }
 }
 
