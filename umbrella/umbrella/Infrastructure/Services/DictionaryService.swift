@@ -42,7 +42,7 @@ class CEDICTDictionaryService: DictionaryService {
 
     /// Preload CEDICT data from bundled file
     func preloadDictionary() throws {
-        guard let url = Bundle.main.url(forResource: "cedict", withExtension: "ts") else {
+        guard let url = Bundle.main.url(forResource: "cedict_ts", withExtension: "u8") else {
             throw DictionaryServiceError.fileNotFound
         }
 

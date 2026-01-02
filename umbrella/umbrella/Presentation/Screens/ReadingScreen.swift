@@ -70,7 +70,19 @@ struct ReadingScreen: View {
 
                 // Dictionary popup overlay
                 if showingDictionaryPopup, let selectedWord = viewModel.selectedWord {
-                    dictionaryPopup(for: selectedWord)
+                    DictionaryPopupView(
+                        wordSegment: selectedWord,
+                        dictionaryEntry: viewModel.dictionaryEntry,
+                        onMarkWord: {
+                            Task {
+                                await viewModel.markWordAsDifficult(selectedWord.word)
+                            }
+                        },
+                        onClose: {
+                            viewModel.deselectWord()
+                            showingDictionaryPopup = false
+                        }
+                    )
                 }
             }
             .navigationTitle(book.title)
@@ -167,92 +179,6 @@ struct ReadingScreen: View {
         .padding(.vertical, 8)
     }
 
-    private func dictionaryPopup(for wordSegment: AppWordSegment) -> some View {
-        Color.black.opacity(0.4)
-            .edgesIgnoringSafeArea(.all)
-            .overlay(
-                VStack(spacing: 0) {
-                    Spacer()
-
-                    CardContainer(padding: EdgeInsets(top: 24, leading: 24, bottom: 24, trailing: 24)) {
-                        VStack(spacing: 16) {
-                            // Word display
-                            VStack(spacing: 8) {
-                                Text(wordSegment.word)
-                                    .titleStyle()
-                                    .fontWeight(.bold)
-
-                                if let pinyin = wordSegment.pinyin {
-                                    Text(pinyin)
-                                        .headingStyle()
-                                        .foregroundColor(colors.textSecondary)
-                                }
-                            }
-
-                            // Dictionary entry
-                            if let entry = viewModel.dictionaryEntry {
-                                VStack(spacing: 12) {
-                                    Text(entry.englishDefinition)
-                                        .bodyStyle()
-                                        .multilineTextAlignment(.center)
-                                        .padding(.horizontal)
-
-                                    if let frequency = entry.frequency {
-                                        Text("HSK Level \(frequency.rawValue)")
-                                            .captionStyle()
-                                            .foregroundColor(colors.textSecondary)
-                                    }
-                                }
-                            } else {
-                                Text("Definition not found")
-                                    .bodyStyle()
-                                    .foregroundColor(colors.textSecondary)
-                            }
-
-                            // Action buttons
-                            HStack(spacing: 20) {
-                                Button(action: {
-                                    Task {
-                                        await viewModel.markWordAsDifficult(wordSegment.word)
-                                        showingDictionaryPopup = false
-                                    }
-                                }) {
-                                    VStack(spacing: 4) {
-                                        Image(systemName: viewModel.isWordMarked(wordSegment.word) ? "star.fill" : "star")
-                                            .foregroundColor(.yellow)
-                                        Text("Mark")
-                                            .captionStyle()
-                                    }
-                                }
-
-                                Button(action: {
-                                    viewModel.deselectWord()
-                                    showingDictionaryPopup = false
-                                }) {
-                                    VStack(spacing: 4) {
-                                        Image(systemName: "xmark")
-                                            .foregroundColor(colors.textSecondary)
-                                        Text("Close")
-                                            .captionStyle()
-                                    }
-                                }
-                            }
-                            .padding(.top, 8)
-                        }
-                    }
-                    .cornerRadius(16)
-                    .shadow(color: colors.shadow, radius: 8, x: 0, y: 4)
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 40)
-
-                    Spacer()
-                }
-            )
-            .onTapGesture {
-                viewModel.deselectWord()
-                showingDictionaryPopup = false
-            }
-    }
 }
 
 // MARK: - Supporting Views
