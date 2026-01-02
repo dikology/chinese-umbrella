@@ -42,7 +42,8 @@ struct DIContainer {
     // Repositories - Currently implemented
     static let authRepository = AuthRepositoryImpl()
     static let bookRepository = BookRepositoryImpl(coreDataManager: coreDataManager)
-    static let dictionaryRepository = DictionaryRepositoryImpl()
+    static let dictionaryService = CEDICTDictionaryService()
+    static let dictionaryRepository = DictionaryRepositoryImpl(dictionaryService: dictionaryService)
     static let wordMarkerRepository = WordMarkerRepositoryImpl()
 
     // TODO: Implement in future phases
@@ -57,7 +58,6 @@ struct DIContainer {
     static let ocrService = AppleVisionOCRService()
     static let imageProcessingService = DefaultImageProcessingService()
     static let textSegmentationService = LocalTextSegmentationService()
-    // static let dictionaryService = CEDICTDictionaryService()
     // static let notificationService = NotificationService()
     // static let storageService = FileSystemStorageService()
     // static let loggingService = ConsoleLoggingService()

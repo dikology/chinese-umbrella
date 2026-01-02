@@ -7,118 +7,61 @@
 
 import Foundation
 
-/// Basic dictionary repository implementation
-/// Phase 1: In-memory dictionary with basic Chinese-English mappings
-/// In future phases, this will integrate with CEDICT or other dictionary APIs
+/// Dictionary repository implementation using CEDICT
+/// Integrates with CEDICTDictionaryService for comprehensive Chinese-English dictionary lookups
 class DictionaryRepositoryImpl: DictionaryRepository {
-    private var isLoaded = false
-    private var dictionaryData: [String: DictionaryEntry] = [:]
+    private let dictionaryService: DictionaryService
 
-    // Basic dictionary data for Phase 1 - will be expanded
-    private let basicDictionary: [String: DictionaryEntry] = [
-        "你": DictionaryEntry(
-            simplified: "你",
-            traditional: "你",
-            pinyin: "nǐ",
-            englishDefinition: "you (singular)",
-            frequency: .hsk1
-        ),
-        "好": DictionaryEntry(
-            simplified: "好",
-            traditional: "好",
-            pinyin: "hǎo",
-            englishDefinition: "good; well; proper; good to; easy to; very; so; (suffix indicating completion or readiness)",
-            frequency: .hsk1
-        ),
-        "我": DictionaryEntry(
-            simplified: "我",
-            traditional: "我",
-            pinyin: "wǒ",
-            englishDefinition: "I; me; my",
-            frequency: .hsk1
-        ),
-        "是": DictionaryEntry(
-            simplified: "是",
-            traditional: "是",
-            pinyin: "shì",
-            englishDefinition: "is; are; am; yes; to be",
-            frequency: .hsk1
-        ),
-        "的": DictionaryEntry(
-            simplified: "的",
-            traditional: "的",
-            pinyin: "de",
-            englishDefinition: "(possessive particle); of",
-            frequency: .hsk1
-        ),
-        "了": DictionaryEntry(
-            simplified: "了",
-            traditional: "了",
-            pinyin: "le",
-            englishDefinition: "(modal particle intensifying preceding clause); (completed action marker)",
-            frequency: .hsk1
-        ),
-        "不": DictionaryEntry(
-            simplified: "不",
-            traditional: "不",
-            pinyin: "bù",
-            englishDefinition: "(negative prefix); not; no",
-            frequency: .hsk1
-        ),
-        "在": DictionaryEntry(
-            simplified: "在",
-            traditional: "在",
-            pinyin: "zài",
-            englishDefinition: "(located) at; (to be) in; to exist; in the middle of doing something",
-            frequency: .hsk1
-        )
-    ]
+    init(dictionaryService: DictionaryService = CEDICTDictionaryService()) {
+        self.dictionaryService = dictionaryService
+    }
 
     func lookup(character: String) async throws -> DictionaryEntry? {
         try await ensureDictionaryLoaded()
-        return dictionaryData[character]
+        return dictionaryService.lookup(word: character)
     }
 
     func lookup(word: String) async throws -> DictionaryEntry? {
         try await ensureDictionaryLoaded()
-        return dictionaryData[word]
+        return dictionaryService.lookup(word: word)
     }
 
     func getExamples(for word: String) async throws -> [String] {
         // Phase 1: Return empty examples - will be implemented in Phase 2
+        // TODO: Integrate with example sentences database
         return []
     }
 
     func searchWords(prefix: String, limit: Int) async throws -> [DictionaryEntry] {
-        try await ensureDictionaryLoaded()
-
-        let filtered = dictionaryData.values.filter { entry in
-            entry.simplified.hasPrefix(prefix) || entry.traditional.hasPrefix(prefix)
-        }
-
-        return Array(filtered.prefix(limit))
+        // Phase 1: Basic prefix search implementation
+        // TODO: Implement efficient prefix search in Phase 2
+        // For now, this is a placeholder - would need to iterate through all entries
+        // which is inefficient for large dictionaries like CEDICT
+        throw DictionaryError.invalidQuery // Not implemented in Phase 1
     }
 
     func getWordsByHSKLevel(_ level: HSKLevel) async throws -> [DictionaryEntry] {
-        try await ensureDictionaryLoaded()
-
-        return dictionaryData.values.filter { $0.frequency == level }
+        // Phase 1: HSK level filtering not implemented
+        // TODO: Integrate with HSK frequency database in Phase 2
+        throw DictionaryError.invalidQuery // Not implemented in Phase 1
     }
 
     func preloadDictionary() async throws {
-        // Simulate loading time
-        try await Task.sleep(nanoseconds: 100_000_000) // 0.1 seconds
-
-        dictionaryData = basicDictionary
-        isLoaded = true
+        do {
+            try dictionaryService.preloadDictionary()
+        } catch let error as DictionaryServiceError {
+            throw DictionaryError.preloadFailed
+        } catch {
+            throw DictionaryError.unknown(error)
+        }
     }
 
     func isDictionaryLoaded() async -> Bool {
-        return isLoaded
+        return dictionaryService.isLoaded
     }
 
     private func ensureDictionaryLoaded() async throws {
-        if !isLoaded {
+        if !(await isDictionaryLoaded()) {
             try await preloadDictionary()
         }
     }
