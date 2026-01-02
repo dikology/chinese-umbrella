@@ -21,8 +21,11 @@ final class EditBookViewModel {
     var bookTitle = ""
     var bookAuthor = ""
 
-    // New images to add
+    // New images to add (maintained for backward compatibility)
     var selectedImages: [UIImage] = []
+
+    // New page management
+    var pageList: [PageItem] = []
 
     // UI state
     var isEditing = false
@@ -36,7 +39,7 @@ final class EditBookViewModel {
     }
 
     var newPageCount: Int {
-        selectedImages.count
+        pageList.count
     }
 
     var totalPageCount: Int {
@@ -44,7 +47,7 @@ final class EditBookViewModel {
     }
 
     var canEdit: Bool {
-        !bookTitle.isEmpty && !selectedImages.isEmpty
+        !bookTitle.isEmpty && !pageList.isEmpty
     }
 
     init(
@@ -71,23 +74,26 @@ final class EditBookViewModel {
             return
         }
 
-        guard !selectedImages.isEmpty else {
-            showError(message: "Please select at least one photo to add")
+        guard !pageList.isEmpty else {
+            showError(message: "Please add at least one photo")
             return
         }
 
         isEditing = true
 
         do {
+            // Extract UIImages from PageItems for upload
+            let images = pageList.map { $0.uiImage }
+
             // Add new pages with updated metadata
             let editedBook = try await editBookUseCase.addPagesToBook(
                 book: existingBook,
-                newImages: selectedImages,
+                newImages: images,
                 updatedTitle: bookTitle,
                 updatedAuthor: bookAuthor.isEmpty ? nil : bookAuthor
             )
 
-            LoggingService.shared.info("Successfully edited book: \(editedBook.title) (added \(selectedImages.count) pages)")
+            LoggingService.shared.info("Successfully edited book: \(editedBook.title) (added \(pageList.count) pages)")
             editComplete = true
 
             // Notify parent view that a book was edited

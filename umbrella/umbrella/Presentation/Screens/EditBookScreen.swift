@@ -20,6 +20,11 @@ struct EditBookScreen: View {
     @State private var showPhotoPicker = false
     @State private var showPhotoReview = false
 
+    // Focus state for keyboard management
+    @FocusState private var focusedField: FocusField?
+
+    enum FocusField { case title, author }
+
     init(book: AppBook, editBookUseCase: EditBookUseCase, onBookEdited: (() -> Void)? = nil) {
         LoggingService.shared.debug("EditBookScreen init called with book: \(book.title), pages: \(book.totalPages), author: \(book.author ?? "nil")")
         _viewModel = State(initialValue: EditBookViewModel(
@@ -33,232 +38,63 @@ struct EditBookScreen: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                // Header
-                VStack(spacing: 8) {
-                    Text("Edit Book")
-                        .font(.title)
-                        .fontWeight(.bold)
-
-                    Text("Update book information or add new pages")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
-                }
-                .padding(.horizontal)
-                .padding(.top, 20)
-                .padding(.bottom, 16)
-
                 ScrollView {
                     VStack(spacing: 24) {
-
-                        // Current book info
+                        // Book info (read-only display)
                         VStack(alignment: .leading, spacing: 16) {
-                            Text("Current Book Information")
+                            Text("Current Book")
                                 .font(.headline)
-
-                            VStack(spacing: 12) {
-                                HStack {
-                                    Text("Current pages:")
-                                        .foregroundColor(.secondary)
-                                    Spacer()
-                                    Text("\(viewModel.existingPageCount)")
-                                        .fontWeight(.semibold)
-                                }
-
-                                HStack {
-                                    Text("Title:")
-                                        .foregroundColor(.secondary)
-                                    Spacer()
-                                    Text(viewModel.existingBook.title)
-                                        .lineLimit(1)
-                                        .fontWeight(.semibold)
-                                }
-
-                                if let author = viewModel.existingBook.author {
-                                    HStack {
-                                        Text("Author:")
-                                            .foregroundColor(.secondary)
-                                        Spacer()
-                                        Text(author)
-                                            .lineLimit(1)
-                                            .fontWeight(.semibold)
-                                    }
-                                }
-                            }
-                            .padding()
-                            .background(Color.gray.opacity(0.05))
-                            .cornerRadius(12)
+                            BookInfoDisplay(book: viewModel.existingBook)
                         }
-                        .padding(.horizontal)
-
-                        // Book metadata editing
-                        VStack(alignment: .leading, spacing: 16) {
-                            Text("Update Book Information")
-                                .font(.headline)
-
-                            TextField("Book Title", text: $viewModel.bookTitle)
-                                .textFieldStyle(.roundedBorder)
-                                .padding(.horizontal)
-
-                            TextField("Author (Optional)", text: $viewModel.bookAuthor)
-                                .textFieldStyle(.roundedBorder)
-                                .padding(.horizontal)
-                        }
-                        .padding(.vertical, 16)
+                        .padding()
                         .background(Color.gray.opacity(0.05))
                         .cornerRadius(12)
-                        .padding(.horizontal)
 
-                        // Add new pages section
-                        VStack(spacing: 16) {
-                            Text("Add New Pages")
+                        // Editable metadata
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Update Information")
                                 .font(.headline)
-                                .padding(.top, 16)
+                            TextField("Title", text: $viewModel.bookTitle)
+                                .focused($focusedField, equals: .title)
+                            TextField("Author", text: $viewModel.bookAuthor)
+                                .focused($focusedField, equals: .author)
+                        }
+                        .padding()
 
-                            // Current status
-                            VStack(spacing: 8) {
-                                HStack {
-                                    Text("Existing pages:")
-                                        .foregroundColor(.secondary)
-                                    Spacer()
-                                    Text("\(viewModel.existingPageCount)")
-                                }
-
-                                HStack {
-                                    Text("New pages:")
-                                        .foregroundColor(.secondary)
-                                    Spacer()
-                                    Text("\(viewModel.newPageCount)")
-                                }
-
-                                HStack {
-                                    Text("Total after edit:")
-                                        .foregroundColor(.secondary)
-                                    Spacer()
-                                    Text("\(viewModel.totalPageCount)")
-                                        .fontWeight(.semibold)
-                                }
+                        // Existing pages display
+                        if viewModel.existingPageCount > 0 {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Existing Pages: \(viewModel.existingPageCount)")
+                                    .font(.headline)
+                                // Show thumbnail grid of existing pages
                             }
                             .padding()
-                            .background(Color.blue.opacity(0.05))
-                            .cornerRadius(12)
-                            .padding(.horizontal)
-
-                            // Upload options
-                            VStack(spacing: 16) {
-                                // Camera option
-                                Button {
-                                    showCamera = true
-                                } label: {
-                                    VStack(spacing: 12) {
-                                        Image(systemName: "camera")
-                                            .font(.system(size: 48))
-                                            .foregroundColor(.blue)
-
-                                        Text("Take Photos")
-                                            .font(.title3)
-                                            .fontWeight(.semibold)
-
-                                        Text("Capture new photos of additional pages")
-                                            .font(.subheadline)
-                                            .foregroundColor(.secondary)
-                                            .multilineTextAlignment(.center)
-                                    }
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 24)
-                                    .background(Color.blue.opacity(0.1))
-                                    .cornerRadius(12)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 12)
-                                            .stroke(Color.blue.opacity(0.3), lineWidth: 1)
-                                    )
-                                }
-                                .padding(.horizontal)
-
-                                // Photo picker option
-                                Button {
-                                    showPhotoPicker = true
-                                } label: {
-                                    VStack(spacing: 12) {
-                                        Image(systemName: "photo.on.rectangle.angled")
-                                            .font(.system(size: 48))
-                                            .foregroundColor(.green)
-
-                                        Text("Select from Library")
-                                            .font(.title3)
-                                            .fontWeight(.semibold)
-
-                                        Text("Choose existing photos to add as new pages")
-                                            .font(.subheadline)
-                                            .foregroundColor(.secondary)
-                                            .multilineTextAlignment(.center)
-                                    }
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 24)
-                                    .background(Color.green.opacity(0.1))
-                                    .cornerRadius(12)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 12)
-                                            .stroke(Color.green.opacity(0.3), lineWidth: 1)
-                                    )
-                                }
-                                .padding(.horizontal)
-                            }
                         }
 
-                        // Selected photos count
-                        if viewModel.selectedImages.count > 0 {
-                            VStack(spacing: 8) {
-                                Text("\(viewModel.selectedImages.count) new photo\(viewModel.selectedImages.count == 1 ? "" : "s") selected")
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
+                        // Add new pages
+                        PageGridView(pages: $viewModel.pageList)
 
-                                Button {
-                                    showPhotoReview = true
-                                } label: {
-                                    Text("Review Photos")
-                                        .font(.subheadline)
-                                        .foregroundColor(.blue)
-                                }
-                            }
-                            .padding(.top, 8)
-                        }
+                        // Upload buttons
+                        UploadMethodButtons(
+                            onCameraTap: openCamera,
+                            onLibraryTap: openPhotoPicker
+                        )
 
                         Spacer(minLength: 40)
                     }
                 }
 
-                // Edit button
-                if !viewModel.selectedImages.isEmpty || viewModel.bookTitle != viewModel.existingBook.title || viewModel.bookAuthor != (viewModel.existingBook.author ?? "") {
-                    Button {
-                        Task {
-                            await viewModel.editBook()
-                        }
-                    } label: {
-                        if viewModel.isEditing {
-                            HStack {
-                                ProgressView()
-                                    .tint(.white)
-                                Text("Updating...")
-                                    .font(.headline)
-                            }
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(Color.blue.opacity(0.6))
-                            .cornerRadius(12)
-                        } else {
-                            Text("Update Book")
-                                .font(.headline)
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 16)
-                                .background(Color.blue)
-                                .cornerRadius(12)
-                        }
+                // Fixed button at bottom
+                if !viewModel.pageList.isEmpty ||
+                   viewModel.bookTitle != viewModel.existingBook.title {
+                    PrimaryButton(
+                        title: viewModel.isEditing ? "Updating..." : "Update Book",
+                        isLoading: viewModel.isEditing,
+                        isEnabled: !viewModel.bookTitle.isEmpty
+                    ) {
+                        Task { await viewModel.editBook() }
                     }
-                    .disabled(viewModel.isEditing || viewModel.bookTitle.isEmpty)
-                    .padding(.horizontal)
-                    .padding(.bottom, 20)
+                    .padding()
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -276,20 +112,37 @@ struct EditBookScreen: View {
             } message: {
                 Text(viewModel.errorMessage)
             }
-            .sheet(isPresented: $showCamera) {
-                CameraView(capturedImages: $viewModel.selectedImages)
+            .fullScreenCover(isPresented: $showCamera) {
+                CameraViewContainer(
+                    pageList: $viewModel.pageList,
+                    isPresented: $showCamera
+                )
             }
             .sheet(isPresented: $showPhotoPicker) {
-                PhotoPickerView(selectedImages: $viewModel.selectedImages)
+                PhotoPickerSheet(selectedPages: $viewModel.pageList)
             }
             .sheet(isPresented: $showPhotoReview) {
-                PhotoReviewScreen(images: $viewModel.selectedImages)
+                PhotoReviewScreen(pages: $viewModel.pageList)
             }
             .onChange(of: viewModel.editComplete) { oldValue, newValue in
                 if newValue {
                     dismiss()
                 }
             }
+        }
+    }
+
+    private func openCamera() {
+        focusedField = nil
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            showCamera = true
+        }
+    }
+
+    private func openPhotoPicker() {
+        focusedField = nil
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            showPhotoPicker = true
         }
     }
 }

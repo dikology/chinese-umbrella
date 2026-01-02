@@ -8,6 +8,7 @@
 import SwiftUI
 
 // Design System Imports
+import Foundation
 
 /// Screen for uploading books with camera and photo picker options
 struct BookUploadScreen: View {
@@ -24,6 +25,13 @@ struct BookUploadScreen: View {
     @State private var showPhotoPicker = false
     @State private var showPhotoReview = false
 
+    // Focus state for keyboard management
+    @FocusState private var focusedField: FocusField?
+
+    enum FocusField {
+        case title, author
+    }
+
     init(bookUploadUseCase: BookUploadUseCase, userId: UUID, onBookUploaded: (() -> Void)? = nil) {
         _viewModel = State(initialValue: BookUploadViewModel(
             bookUploadUseCase: bookUploadUseCase,
@@ -35,131 +43,83 @@ struct BookUploadScreen: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                colors.background
-                    .ignoresSafeArea()
+                colors.background.ignoresSafeArea()
 
                 VStack(spacing: 0) {
-                // Header
-                VStack(spacing: 8) {
-                    Text("Upload Book")
-                        .titleStyle()
-
-                    Text("Take photos of book pages or select from your library")
-                        .bodySecondaryStyle()
-                        .multilineTextAlignment(.center)
-                }
-                .padding(.horizontal)
-                .padding(.top, 20)
-                .padding(.bottom, 16)
-
-                // Book metadata input
-                CardContainer {
-                    VStack(alignment: .leading, spacing: 16) {
-                        Text("Book Information")
-                            .headingStyle()
-
-                        TextField("Book Title", text: $viewModel.bookTitle)
-                            .textFieldStyle()
-
-                        TextField("Author (Optional)", text: $viewModel.bookAuthor)
-                            .textFieldStyle()
-                    }
-                }
-                .padding(.horizontal)
-
-                // Upload options
-                VStack(spacing: 16) {
-                    Text("Choose Upload Method")
-                        .headingStyle()
-                        .padding(.top, 16)
-
-                    // Camera option
-                    Button {
-                        showCamera = true
-                    } label: {
-                        VStack(spacing: 12) {
-                            Image(systemName: "camera")
-                                .font(.system(size: 48))
-                                .foregroundColor(colors.primary)
-
-                            Text("Take Photos")
-                                .subheadingStyle()
-
-                            Text("Capture new photos of book pages")
-                                .bodySecondaryStyle()
-                                .multilineTextAlignment(.center)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 24)
-                        .background(colors.blueTint)
-                        .cornerRadius(12)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(colors.primary.opacity(0.3), lineWidth: 1)
-                        )
-                    }
-                    .padding(.horizontal)
-
-                    // Photo picker option
-                    Button {
-                        showPhotoPicker = true
-                    } label: {
-                        VStack(spacing: 12) {
-                            Image(systemName: "photo.on.rectangle.angled")
-                                .font(.system(size: 48))
-                                .foregroundColor(colors.success)
-
-                            Text("Select from Library")
-                                .subheadingStyle()
-
-                            Text("Choose existing photos from your device")
-                                .bodySecondaryStyle()
-                                .multilineTextAlignment(.center)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 24)
-                        .background(colors.greenTint)
-                        .cornerRadius(12)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(colors.success.opacity(0.3), lineWidth: 1)
-                        )
-                    }
-                    .padding(.horizontal)
-                }
-
-                // Selected photos count
-                if viewModel.selectedImages.count > 0 {
+                    // MARK: - Header
                     VStack(spacing: 8) {
-                        Text("\(viewModel.selectedImages.count) photo\(viewModel.selectedImages.count == 1 ? "" : "s") selected")
+                        Text("Upload Book")
+                            .titleStyle()
+                        Text("Add pages and organize them")
                             .bodySecondaryStyle()
-
-                        Button {
-                            showPhotoReview = true
-                        } label: {
-                            Text("Review Photos")
-                                .bodySecondaryStyle()
-                                .foregroundColor(colors.primary)
-                        }
-                    }
-                    .padding(.top, 8)
-                }
-
-                Spacer()
-
-                // Upload button
-                if !viewModel.selectedImages.isEmpty {
-                    PrimaryButton(
-                        title: viewModel.isUploading ? "Processing..." : "Upload Book",
-                        isLoading: viewModel.isUploading,
-                        isEnabled: !viewModel.bookTitle.isEmpty
-                    ) {
-                        Task {
-                            await viewModel.uploadBook()
-                        }
                     }
                     .padding(.horizontal)
-                    .padding(.bottom, 20)
+                    .padding(.vertical, 20)
+
+                    ScrollView {
+                        VStack(spacing: 24) {
+                            // MARK: - Metadata Section
+                            CardContainer {
+                                VStack(alignment: .leading, spacing: 16) {
+                                    Text("Book Information")
+                                        .headingStyle()
+
+                                    TextField("Book Title", text: $viewModel.bookTitle)
+                                        .focused($focusedField, equals: .title)
+                                        .textFieldStyle()
+
+                                    TextField("Author (Optional)", text: $viewModel.bookAuthor)
+                                        .focused($focusedField, equals: .author)
+                                        .textFieldStyle()
+                                }
+                                .padding(.horizontal)
+                            }
+                            .padding(.horizontal)
+
+                            // MARK: - Page Management Section
+                            if !viewModel.pageList.isEmpty {
+                                PageGridView(pages: $viewModel.pageList)
+                            }
+
+                            // MARK: - Upload Methods
+                            if viewModel.pageList.count < 500 { // Reasonable limit
+                                VStack(spacing: 16) {
+                                    Text("Add Photos")
+                                        .headingStyle()
+                                        .padding(.top, 16)
+                                        .padding(.horizontal)
+
+                                    UploadMethodButtons(
+                                        onCameraTap: openCamera,
+                                        onLibraryTap: openPhotoPicker
+                                    )
+                                    .padding(.horizontal)
+                                }
+                            }
+
+                            Spacer(minLength: 40)
+                        }
+                    }
+
+                    // MARK: - Upload Button (Fixed at Bottom)
+                    if !viewModel.pageList.isEmpty {
+                        VStack(spacing: 12) {
+                            PrimaryButton(
+                                title: viewModel.isUploading ? "Processing..." : "Upload Book",
+                                isLoading: viewModel.isUploading,
+                                isEnabled: !viewModel.bookTitle.isEmpty
+                            ) {
+                                Task {
+                                    await viewModel.uploadBook()
+                                }
+                            }
+
+                            Text("\(viewModel.pageList.count) page(s) ready")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding()
+                    }
                 }
             }
             .navigationBarTitleDisplayMode(.inline)
@@ -170,28 +130,44 @@ struct BookUploadScreen: View {
                     }
                 }
             }
-            .alert("Upload Error", isPresented: $viewModel.showError) {
+            .alert("Error", isPresented: $viewModel.showError) {
                 Button("OK") {
                     viewModel.showError = false
                 }
             } message: {
                 Text(viewModel.errorMessage)
             }
-            .sheet(isPresented: $showCamera) {
-                CameraView(capturedImages: $viewModel.selectedImages)
+            .fullScreenCover(isPresented: $showCamera) {
+                CameraViewContainer(
+                    pageList: $viewModel.pageList,
+                    isPresented: $showCamera
+                )
             }
             .sheet(isPresented: $showPhotoPicker) {
-                PhotoPickerView(selectedImages: $viewModel.selectedImages)
+                PhotoPickerSheet(selectedPages: $viewModel.pageList)
             }
             .sheet(isPresented: $showPhotoReview) {
-                PhotoReviewScreen(images: $viewModel.selectedImages)
+                PhotoReviewScreen(pages: $viewModel.pageList)
             }
             .onChange(of: viewModel.uploadComplete) { oldValue, newValue in
                 if newValue {
                     dismiss()
                 }
-                }
             }
+        }
+    }
+
+    private func openCamera() {
+        focusedField = nil
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            showCamera = true
+        }
+    }
+
+    private func openPhotoPicker() {
+        focusedField = nil
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+            showPhotoPicker = true
         }
     }
 }
@@ -205,7 +181,8 @@ final class BookUploadViewModel {
 
     var bookTitle = ""
     var bookAuthor = ""
-    var selectedImages: [UIImage] = []
+    var selectedImages: [UIImage] = [] // Keep for backward compatibility
+    var pageList: [PageItem] = [] // New page management
     var isUploading = false
     var showError = false
     var errorMessage = ""
@@ -224,16 +201,19 @@ final class BookUploadViewModel {
             return
         }
 
-        guard !selectedImages.isEmpty else {
-            showError(message: "Please select at least one photo")
+        guard !pageList.isEmpty else {
+            showError(message: "Please add at least one photo")
             return
         }
 
         isUploading = true
 
         do {
+            // Extract UIImages from PageItems for upload
+            let images = pageList.map { $0.uiImage }
+
             let book = try await bookUploadUseCase.uploadBook(
-                images: selectedImages,
+                images: images,
                 title: bookTitle,
                 author: bookAuthor.isEmpty ? nil : bookAuthor,
                 userId: userId
