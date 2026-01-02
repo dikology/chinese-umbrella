@@ -9,167 +9,84 @@ import SwiftUI
 
 /// Screen for reviewing and editing selected photos before processing
 struct PhotoReviewScreen: View {
-    @Binding var images: [UIImage]
+    @Binding var pages: [PageItem]
     @Environment(\.dismiss) private var dismiss
+    @State private var currentPageIndex = 0
+    @State private var showPageNumberEditor = false
+    @State private var pageNumberInput = ""
 
-    @State private var selectedIndices = Set<Int>()
-    @State private var showDeleteConfirmation = false
+    var currentPage: PageItem {
+        pages[currentPageIndex]
+    }
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                // Header
-                VStack(spacing: 8) {
-                    Text("Review Photos")
-                        .font(.title2)
-                        .fontWeight(.bold)
-
-                    Text("Check and organize your selected photos")
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-                .padding(.horizontal)
-                .padding(.top, 20)
-                .padding(.bottom, 16)
-
-                // Photo grid
-                ScrollView {
-                    LazyVGrid(columns: [
-                        GridItem(.flexible(), spacing: 12),
-                        GridItem(.flexible(), spacing: 12)
-                    ], spacing: 12) {
-                        ForEach(images.indices, id: \.self) { index in
-                            PhotoReviewItem(
-                                image: images[index],
-                                pageNumber: index + 1,
-                                isSelected: selectedIndices.contains(index),
-                                onTap: {
-                                    toggleSelection(for: index)
-                                },
-                                onDelete: {
-                                    deleteImage(at: index)
-                                }
-                            )
+            ZStack {
+                // Full page image viewer
+                VStack(spacing: 0) {
+                    // Navigation bar
+                    HStack {
+                        Button("← Back") { dismiss() }
+                        Spacer()
+                        Text("Page \(currentPageIndex + 1) of \(pages.count)")
+                            .font(.headline)
+                        Spacer()
+                        Button("Edit") {
+                            pageNumberInput = String(currentPage.pageNumber ?? 0)
+                            showPageNumberEditor = true
                         }
                     }
-                    .padding(.horizontal)
-                }
+                    .padding()
+                    .background(Color.gray.opacity(0.1))
 
-                // Selection controls
-                if !selectedIndices.isEmpty {
-                    VStack(spacing: 12) {
-                        HStack {
-                            Text("\(selectedIndices.count) selected")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
+                    // Image viewer
+                    Image(uiImage: currentPage.uiImage)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
 
-                            Spacer()
-
-                            Button {
-                                selectedIndices.removeAll()
-                            } label: {
-                                Text("Clear Selection")
-                                    .font(.subheadline)
-                                    .foregroundColor(.blue)
-                            }
+                    // Navigation controls
+                    HStack {
+                        Button(action: previousPage) {
+                            Image(systemName: "chevron.left")
+                                .frame(width: 44, height: 44)
                         }
-                        .padding(.horizontal)
+                        .disabled(currentPageIndex == 0)
 
-                        Button {
-                            showDeleteConfirmation = true
-                        } label: {
-                            HStack {
-                                Image(systemName: "trash")
-                                Text("Delete Selected")
-                            }
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
-                            .background(Color.red)
-                            .cornerRadius(8)
+                        Spacer()
+
+                        Button(action: nextPage) {
+                            Image(systemName: "chevron.right")
+                                .frame(width: 44, height: 44)
                         }
-                        .padding(.horizontal)
+                        .disabled(currentPageIndex == pages.count - 1)
                     }
-                    .padding(.vertical, 16)
-                    .background(Color.gray.opacity(0.05))
+                    .padding()
+                    .background(Color.gray.opacity(0.1))
                 }
-
-                // Bottom instructions
-                VStack(spacing: 8) {
-                    Text("Tap photos to select multiple")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-
-                    Text("Swipe left on individual photos to delete")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-                .padding(.vertical, 8)
-
-                // Done button
-                Button {
-                    dismiss()
-                } label: {
-                    Text("Continue with \(images.count) photo\(images.count == 1 ? "" : "s")")
-                        .font(.headline)
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(images.isEmpty ? Color.gray : Color.blue)
-                        .cornerRadius(12)
-                }
-                .disabled(images.isEmpty)
-                .padding(.horizontal)
-                .padding(.bottom, 20)
             }
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Back") {
-                        dismiss()
-                    }
-                }
-            }
-            .alert("Delete Photos", isPresented: $showDeleteConfirmation) {
-                Button("Cancel", role: .cancel) {}
-                Button("Delete", role: .destructive) {
-                    deleteSelectedImages()
-                }
-            } message: {
-                Text("Are you sure you want to delete \(selectedIndices.count) selected photo\(selectedIndices.count == 1 ? "" : "s")?")
+            .sheet(isPresented: $showPageNumberEditor) {
+                PageNumberEditorSheet(
+                    pageIndex: currentPageIndex,
+                    pages: $pages,
+                    input: $pageNumberInput,
+                    isPresented: $showPageNumberEditor
+                )
             }
         }
     }
 
-    private func toggleSelection(for index: Int) {
-        if selectedIndices.contains(index) {
-            selectedIndices.remove(index)
-        } else {
-            selectedIndices.insert(index)
+    private func previousPage() {
+        if currentPageIndex > 0 {
+            currentPageIndex -= 1
         }
     }
 
-    private func deleteImage(at index: Int) {
-        images.remove(at: index)
-        // Adjust selected indices after removal
-        selectedIndices = Set(selectedIndices.compactMap { selectedIndex in
-            if selectedIndex < index {
-                return selectedIndex
-            } else if selectedIndex > index {
-                return selectedIndex - 1
-            } else {
-                return nil
-            }
-        })
-    }
-
-    private func deleteSelectedImages() {
-        // Sort indices in descending order to delete from end first
-        let sortedIndices = selectedIndices.sorted(by: >)
-        for index in sortedIndices {
-            images.remove(at: index)
+    private func nextPage() {
+        if currentPageIndex < pages.count - 1 {
+            currentPageIndex += 1
         }
-        selectedIndices.removeAll()
     }
 }
 
@@ -228,13 +145,13 @@ struct PhotoReviewItem: View {
 }
 
 #Preview {
-    // Sample images for preview
-    let sampleImages: [UIImage] = [
-        UIImage(systemName: "photo")!,
-        UIImage(systemName: "photo.fill")!,
-        UIImage(systemName: "photo.artframe")!,
-        UIImage(systemName: "photo.circle")!
+    // Sample pages for preview
+    let samplePages: [PageItem] = [
+        PageItem(id: UUID(), uiImage: UIImage(systemName: "photo")!, pageNumber: 1, position: 0),
+        PageItem(id: UUID(), uiImage: UIImage(systemName: "photo.fill")!, pageNumber: 2, position: 1),
+        PageItem(id: UUID(), uiImage: UIImage(systemName: "photo.artframe")!, pageNumber: 3, position: 2),
+        PageItem(id: UUID(), uiImage: UIImage(systemName: "photo.circle")!, pageNumber: 4, position: 3)
     ]
 
-    return PhotoReviewScreen(images: .constant(sampleImages))
+    PhotoReviewScreen(pages: .constant(samplePages))
 }
