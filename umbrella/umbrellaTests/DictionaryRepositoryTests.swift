@@ -5,27 +5,34 @@
 //  Created by Денис on 02.01.2026.
 //
 
-import XCTest
+import Testing
 @testable import umbrella
 
-final class DictionaryRepositoryTests: XCTestCase {
-    var repository: DictionaryRepositoryImpl!
-    var mockService: MockDictionaryService!
+@Suite("Dictionary Repository Tests")
+struct DictionaryRepositoryTests {
 
-    override func setUp() {
-        super.setUp()
-        mockService = MockDictionaryService()
-        repository = DictionaryRepositoryImpl(dictionaryService: mockService)
+    // Mock service for testing
+    private final class MockDictionaryService: DictionaryService {
+        var mockEntry: DictionaryEntry?
+        var preloadCalled = false
+        var isLoaded = false
+
+        func lookup(word: String) -> DictionaryEntry? {
+            return mockEntry
+        }
+
+        func preloadDictionary() throws {
+            preloadCalled = true
+            isLoaded = true
+        }
     }
 
-    override func tearDown() {
-        repository = nil
-        mockService = nil
-        super.tearDown()
-    }
-
+    @Test("Character lookup functionality")
     func testLookupCharacter() async throws {
-        // Setup mock
+        // Setup
+        let mockService = MockDictionaryService()
+        let repository = DictionaryRepositoryImpl(dictionaryService: mockService)
+
         let expectedEntry = DictionaryEntry(
             simplified: "你",
             traditional: "你",
@@ -36,12 +43,16 @@ final class DictionaryRepositoryTests: XCTestCase {
 
         // Test lookup
         let entry = try await repository.lookup(character: "你")
-        XCTAssertNotNil(entry, "Should return entry")
-        XCTAssertEqual(entry?.simplified, "你", "Should return correct entry")
+        #expect(entry != nil, "Should return entry")
+        #expect(entry?.simplified == "你", "Should return correct entry")
     }
 
+    @Test("Word lookup functionality")
     func testLookupWord() async throws {
-        // Setup mock
+        // Setup
+        let mockService = MockDictionaryService()
+        let repository = DictionaryRepositoryImpl(dictionaryService: mockService)
+
         let expectedEntry = DictionaryEntry(
             simplified: "你好",
             traditional: "你好",
@@ -52,49 +63,48 @@ final class DictionaryRepositoryTests: XCTestCase {
 
         // Test lookup
         let entry = try await repository.lookup(word: "你好")
-        XCTAssertNotNil(entry, "Should return entry")
-        XCTAssertEqual(entry?.simplified, "你好", "Should return correct entry")
+        #expect(entry != nil, "Should return entry")
+        #expect(entry?.simplified == "你好", "Should return correct entry")
     }
 
+    @Test("Dictionary preloading")
     func testDictionaryPreloading() async throws {
+        // Setup
+        let mockService = MockDictionaryService()
+        let repository = DictionaryRepositoryImpl(dictionaryService: mockService)
+
         // Test preloading
         try await repository.preloadDictionary()
 
         // Verify service was called
-        XCTAssertTrue(mockService.preloadCalled, "Service preload should be called")
+        #expect(mockService.preloadCalled, "Service preload should be called")
     }
 
+    @Test("Dictionary loaded state")
     func testIsDictionaryLoaded() async {
+        // Setup
+        let mockService = MockDictionaryService()
+        let repository = DictionaryRepositoryImpl(dictionaryService: mockService)
+
         // Initially should not be loaded
         mockService.isLoaded = false
         var loaded = await repository.isDictionaryLoaded()
-        XCTAssertFalse(loaded, "Should not be loaded initially")
+        #expect(!loaded, "Should not be loaded initially")
 
         // After setting loaded
         mockService.isLoaded = true
         loaded = await repository.isDictionaryLoaded()
-        XCTAssertTrue(loaded, "Should be loaded after setting")
+        #expect(loaded, "Should be loaded after setting")
     }
 
+    @Test("Examples retrieval")
     func testGetExamples() async throws {
+        // Setup
+        let mockService = MockDictionaryService()
+        let repository = DictionaryRepositoryImpl(dictionaryService: mockService)
+
         // Test examples (currently returns empty array)
         let examples = try await repository.getExamples(for: "你好")
-        XCTAssertTrue(examples.isEmpty, "Examples should be empty in Phase 1")
-    }
-}
-
-// Mock service for testing
-class MockDictionaryService: DictionaryService {
-    var mockEntry: DictionaryEntry?
-    var preloadCalled = false
-    var isLoaded = false
-
-    func lookup(word: String) -> DictionaryEntry? {
-        return mockEntry
-    }
-
-    func preloadDictionary() throws {
-        preloadCalled = true
-        isLoaded = true
+        #expect(examples.isEmpty, "Examples should be empty in Phase 1")
     }
 }

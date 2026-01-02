@@ -42,6 +42,18 @@ public struct DictionaryEntry: Codable, Hashable {
         !examples.isEmpty
     }
 
+    // MARK: - Computed Properties
+
+    /// Individual definitions split by semicolon
+    var definitions: [String] {
+        englishDefinition.components(separatedBy: "; ").filter { !$0.isEmpty }
+    }
+
+    /// Whether traditional and simplified forms are different
+    var hasTraditionalVariant: Bool {
+        traditional != simplified
+    }
+
     // MARK: - Validation
 
     var isValid: Bool {
