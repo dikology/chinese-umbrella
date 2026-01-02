@@ -88,9 +88,9 @@ struct ReadingScreen: View {
             .navigationTitle(book.title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    progressIndicator
-                }
+//                ToolbarItem(placement: .navigationBarTrailing) {
+//                    progressIndicator
+//                }
             }
         }
         .task {
@@ -329,6 +329,59 @@ extension ReadingViewModel {
     }
 }
 
+struct FlowingTextLayoutPreview: View {
+    let sampleWords = ["你好", "世界", "学习", "中文", "这是", "一个", "测试", "句子", "。"]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            Text("Before (Grid Layout - looks like columns):")
+                .font(.headline)
+
+            GridLayoutExample(words: sampleWords)
+
+            Text("After (Flowing Text Layout - natural reading flow):")
+                .font(.headline)
+
+            FlowingLayoutExample(words: sampleWords)
+        }
+        .padding()
+    }
+}
+
+struct GridLayoutExample: View {
+    let words: [String]
+
+    var body: some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 28), spacing: 1)], spacing: 12) {
+            ForEach(words, id: \.self) { word in
+                Text(word)
+                    .padding(.horizontal, 3)
+                    .padding(.vertical, 4)
+                    .background(Color.blue.opacity(0.1))
+                    .cornerRadius(4)
+            }
+        }
+        .frame(height: 120)
+    }
+}
+
+struct FlowingLayoutExample: View {
+    let words: [String]
+
+    var body: some View {
+        FlowingTextLayout {
+            ForEach(words, id: \.self) { word in
+                Text(word)
+                    .padding(.horizontal, 3)
+                    .padding(.vertical, 4)
+                    .background(Color.green.opacity(0.1))
+                    .cornerRadius(4)
+            }
+        }
+        .frame(height: 60)
+    }
+}
+
 #Preview {
     // Create a mock book for preview
     let mockPage = AppBookPage(
@@ -348,34 +401,5 @@ extension ReadingViewModel {
 }
 
 #Preview("Flowing Text Layout") {
-    VStack(alignment: .leading, spacing: 20) {
-        Text("Before (Grid Layout - looks like columns):")
-            .font(.headline)
-
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 28), spacing: 1)], spacing: 12) {
-            ForEach(["你好", "世界", "学习", "中文", "这是", "一个", "测试", "句子", "。"], id: \.self) { word in
-                Text(word)
-                    .padding(.horizontal, 3)
-                    .padding(.vertical, 4)
-                    .background(Color.blue.opacity(0.1))
-                    .cornerRadius(4)
-            }
-        }
-        .frame(height: 120)
-
-        Text("After (Flowing Text Layout - natural reading flow):")
-            .font(.headline)
-
-        FlowingTextLayout {
-            ForEach(["你好", "世界", "学习", "中文", "这是", "一个", "测试", "句子", "。"], id: \.self) { word in
-                Text(word)
-                    .padding(.horizontal, 3)
-                    .padding(.vertical, 4)
-                    .background(Color.green.opacity(0.1))
-                    .cornerRadius(4)
-            }
-        }
-        .frame(height: 60)
-    }
-    .padding()
+    FlowingTextLayoutPreview()
 }
