@@ -75,7 +75,12 @@ struct EditBookViewModelTests {
         let viewModel = EditBookViewModel(book: book, editBookUseCase: mockUseCase)
 
         // When
-        viewModel.selectedImages = [createTestImage(), createTestImage(), createTestImage()]
+        let pageItems = [
+            PageItem(id: UUID(), uiImage: createTestImage(), position: 0),
+            PageItem(id: UUID(), uiImage: createTestImage(), position: 1),
+            PageItem(id: UUID(), uiImage: createTestImage(), position: 2)
+        ]
+        viewModel.pageList = pageItems
 
         // Then
         #expect(viewModel.existingPageCount == 2)
@@ -102,7 +107,7 @@ struct EditBookViewModelTests {
 
         // When
         viewModel.bookTitle = ""
-        viewModel.selectedImages = [createTestImage()]
+        viewModel.pageList = [PageItem(id: UUID(), uiImage: createTestImage(), position: 0)]
 
         // Then
         #expect(!viewModel.canEdit)
@@ -115,7 +120,10 @@ struct EditBookViewModelTests {
         // Given
         let book = createTestBook(pageCount: 2)
         let viewModel = EditBookViewModel(book: book, editBookUseCase: mockUseCase)
-        viewModel.selectedImages = [createTestImage(), createTestImage()]
+        viewModel.pageList = [
+            PageItem(id: UUID(), uiImage: createTestImage(), position: 0),
+            PageItem(id: UUID(), uiImage: createTestImage(), position: 1)
+        ]
         viewModel.bookTitle = "Updated Title"
         viewModel.bookAuthor = "Updated Author"
 
@@ -150,7 +158,7 @@ struct EditBookViewModelTests {
         let book = createTestBook(pageCount: 2)
         let viewModel = EditBookViewModel(book: book, editBookUseCase: mockUseCase)
         viewModel.bookTitle = ""
-        viewModel.selectedImages = [createTestImage()]
+        viewModel.pageList = [PageItem(id: UUID(), uiImage: createTestImage(), position: 0)]
 
         // When
         await viewModel.editBook()
@@ -166,7 +174,7 @@ struct EditBookViewModelTests {
         // Given
         let book = createTestBook(pageCount: 2)
         let viewModel = EditBookViewModel(book: book, editBookUseCase: mockUseCase)
-        viewModel.selectedImages = [createTestImage()]
+        viewModel.pageList = [PageItem(id: UUID(), uiImage: createTestImage(), position: 0)]
 
         mockUseCase.shouldThrowError = true
 
@@ -235,7 +243,8 @@ struct EditBookViewModelTests {
 
         // When: Adding images rapidly
         for i in 0..<10 {
-            viewModel.selectedImages.append(createTestImage())
+            let pageItem = PageItem(id: UUID(), uiImage: createTestImage(), position: i)
+            viewModel.pageList.append(pageItem)
             // Then: Counts should update correctly
             #expect(viewModel.newPageCount == i + 1)
             #expect(viewModel.totalPageCount == 2 + i + 1)
@@ -247,11 +256,15 @@ struct EditBookViewModelTests {
         // Given
         let book = createTestBook(pageCount: 2)
         let viewModel = EditBookViewModel(book: book, editBookUseCase: mockUseCase)
-        let images = [createTestImage(), createTestImage(), createTestImage()]
-        viewModel.selectedImages = images
+        let pageItems = [
+            PageItem(id: UUID(), uiImage: createTestImage(), position: 0),
+            PageItem(id: UUID(), uiImage: createTestImage(), position: 1),
+            PageItem(id: UUID(), uiImage: createTestImage(), position: 2)
+        ]
+        viewModel.pageList = pageItems
 
         // When: Removing an image
-        viewModel.selectedImages.remove(at: 1)
+        viewModel.pageList.remove(at: 1)
 
         // Then: Counts should update
         #expect(viewModel.newPageCount == 2)
@@ -265,16 +278,21 @@ struct EditBookViewModelTests {
         author: String? = "Test Author",
         pageCount: Int = 3
     ) -> AppBook {
+        let bookId = UUID()
         let pages = (0..<pageCount).map { index in
             AppBookPage(
                 id: UUID(),
-                imageData: Data(),
-                words: [WordSegment(word: "test\(index)", boundingBox: .zero)],
-                pageNumber: index + 1
+                bookId: bookId,
+                pageNumber: index + 1,
+                originalImagePath: "/test/path/image\(index).jpg",
+                extractedText: "Test extracted text for page \(index)",
+                words: [AppWordSegment(word: "test\(index)", startIndex: 0, endIndex: 4)],
+                wordsMarked: []
             )
         }
 
         return AppBook(
+            id: bookId,
             title: title,
             author: author,
             pages: pages,

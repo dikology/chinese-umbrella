@@ -33,6 +33,11 @@ class CoreDataManager {
         if inMemory {
             container.persistentStoreDescriptions.first!.url = URL(fileURLWithPath: "/dev/null")
         }
+    }
+
+    init(customStoreURL: URL) {
+        container = NSPersistentContainer(name: "umbrella")
+        container.persistentStoreDescriptions.first!.url = customStoreURL
 
         container.loadPersistentStores { storeDescription, error in
             if let error = error as NSError? {

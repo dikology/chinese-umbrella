@@ -10,11 +10,20 @@ import CoreData
 @testable import umbrella
 
 struct BookRepositoryTests {
-    private let coreDataManager = CoreDataManager(inMemory: true)
+    private var coreDataManager: CoreDataManager!
     private var repository: BookRepositoryImpl!
     private var userId: UUID!
 
     init() {
+        // Create a unique test database URL to avoid conflicts between test runs
+        let tempDir = FileManager.default.temporaryDirectory
+        let testDbURL = tempDir.appendingPathComponent("test-\(UUID().uuidString).sqlite")
+
+        // Clean up any existing test database
+        try? FileManager.default.removeItem(at: testDbURL)
+
+        // Create CoreDataManager with a custom store URL for isolation
+        coreDataManager = CoreDataManager(customStoreURL: testDbURL)
         repository = BookRepositoryImpl(coreDataManager: coreDataManager)
         userId = UUID()
     }
