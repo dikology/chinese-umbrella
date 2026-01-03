@@ -1,0 +1,171 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - master
+  push:
+    branches:
+      - master
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to deploy from'
+        required: true
+        default: 'master'
+        type: choice
+        options:
+          - master
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: macos-15
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest
+
+      - name: Verify Xcode setup
+        run: |
+          sudo xcode-select -s /Applications/Xcode.app
+          xcodebuild -version
+          xcrun simctl list devices available
+
+      - name: Install xcbeautify
+        run: brew install xcbeautify
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.1"
+          bundler-cache: true
+
+      - name: Add platform to lockfile
+        run: bundle lock --add-platform arm64-darwin-23
+
+      - name: Install Ruby dependencies
+        run: bundle install
+
+      - name: Run tests
+        run: bundle exec fastlane test
+
+  deploy:
+    name: Deploy to TestFlight
+    runs-on: macos-15
+    if: |
+      (github.event_name == 'push' && github.ref == 'refs/heads/master' && contains(github.event.head_commit.message, '[deploy]')) ||
+      (github.event_name == 'workflow_dispatch')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch || github.ref }}
+
+      - name: Set up Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest
+
+      - name: Verify Xcode setup
+        run: |
+          sudo xcode-select -s /Applications/Xcode.app
+          xcodebuild -version
+          xcrun simctl list devices available
+
+      - name: Install xcbeautify
+        run: brew install xcbeautify
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.1"
+          bundler-cache: true
+
+      - name: Add platform to lockfile
+        run: bundle lock --add-platform arm64-darwin-23
+
+      - name: Install Ruby dependencies
+        run: bundle install
+
+      - name: Setup App Store Connect API Key
+        env:
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY_CONTENT: ${{ secrets.APP_STORE_CONNECT_API_KEY_CONTENT }}
+        run: |
+          mkdir -p ~/.appstoreconnect/private_keys
+          KEY_PATH=~/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8
+          echo "$APP_STORE_CONNECT_API_KEY_CONTENT" > "$KEY_PATH"
+          chmod 600 "$KEY_PATH"
+          echo "APP_STORE_CONNECT_API_KEY_PATH=$KEY_PATH" >> $GITHUB_ENV
+
+      - name: Setup Keychain for Match
+        run: |
+          # Create a temporary keychain for CI
+          security create-keychain -p "${{ secrets.MATCH_KEYCHAIN_PASSWORD }}" build.keychain
+          security list-keychains -d user -s build.keychain
+          security default-keychain -s build.keychain
+          security unlock-keychain -p "${{ secrets.MATCH_KEYCHAIN_PASSWORD }}" build.keychain
+          security set-keychain-settings -t 3600 -u build.keychain
+          # Disable keychain lock timeout
+          security set-keychain-settings build.keychain
+
+      - name: Resolve Swift Package Dependencies
+        run: |
+          xcodebuild -resolvePackageDependencies \
+            -project umbrella/umbrella.xcodeproj \
+            -scheme umbrella
+
+      - name: Clear Derived Data
+        run: |
+          rm -rf ~/Library/Developer/Xcode/DerivedData/*
+
+      - name: Deploy to TestFlight
+        env:
+          CI: "true"
+          DEPLOY_TO_TESTFLIGHT: "true"
+          # Use App Store Connect API key (preferred for CI)
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          # API key path is set from previous step via GITHUB_ENV
+          # Fallback to username/password only if API key is not available
+          FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD: ${{ secrets.FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD }}
+          FASTLANE_USER: ${{ secrets.FASTLANE_USER }}
+          MATCH_GIT_URL: https://x-access-token:${{ secrets.MATCH_GIT_TOKEN }}@github.com/dikology/certificates.git
+          MATCH_GIT_BRANCH: ${{ secrets.MATCH_GIT_BRANCH || 'master' }}
+          MATCH_PASSWORD: ${{ secrets.MATCH_PASSWORD }}
+          MATCH_KEYCHAIN_NAME: build.keychain
+          MATCH_KEYCHAIN_PASSWORD: ${{ secrets.MATCH_KEYCHAIN_PASSWORD }}
+        run: |
+          # Enable verbose output to prevent error truncation
+          export FASTLANE_VERBOSE=true
+          # Show full stack traces
+          export FASTLANE_SKIP_UPDATE_CHECK=1
+          # Verify API key file exists if using API key
+          if [ -n "$APP_STORE_CONNECT_API_KEY_ID" ]; then
+            KEY_PATH="${APP_STORE_CONNECT_API_KEY_PATH:-$HOME/.appstoreconnect/private_keys/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8}"
+            if [ ! -f "$KEY_PATH" ]; then
+              echo "Error: API key file not found at $KEY_PATH"
+              exit 1
+            fi
+            echo "Using API key file: $KEY_PATH"
+            export APP_STORE_CONNECT_API_KEY_PATH="$KEY_PATH"
+          fi
+          bundle exec fastlane beta --verbose
+
+      - name: Upload build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: |
+            fastlane/build_output/**/*.log
+            fastlane/build_output/**/*.txt
+            ~/Library/Logs/gym/**/*.log
+          retention-days: 7
