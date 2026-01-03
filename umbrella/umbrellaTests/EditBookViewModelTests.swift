@@ -478,6 +478,6 @@ extension EditBookViewModelTests {
         #expect(viewModel.editComplete == false)
         #expect(viewModel.isEditing == false)
         #expect(viewModel.showError == true)
-        #expect(viewModel.errorMessage == "The operation couldn't be completed. (TestError error 1.)")
+        #expect(viewModel.errorMessage == "Test error")
     }
 }
