@@ -7,6 +7,20 @@
 
 import Foundation
 import UIKit
+import SwiftUI
+
+/// Represents an existing page in a book for editing
+struct ExistingPageItem: Identifiable, Equatable {
+    let id: UUID
+    let pageNumber: Int
+    let originalImagePath: String
+    let extractedText: String
+    var position: Int // For reordering
+
+    static func == (lhs: ExistingPageItem, rhs: ExistingPageItem) -> Bool {
+        lhs.id == rhs.id
+    }
+}
 
 /// ViewModel for editing books (adding pages)
 @Observable
@@ -26,6 +40,9 @@ final class EditBookViewModel {
 
     // New page management
     var pageList: [PageItem] = []
+
+    // Existing page management
+    var existingPageList: [ExistingPageItem] = []
 
     // UI state
     var isEditing = false
@@ -64,7 +81,18 @@ final class EditBookViewModel {
         self.bookTitle = book.title
         self.bookAuthor = book.author ?? ""
 
-        LoggingService.shared.debug("EditBookViewModel init complete: bookTitle=\(bookTitle), bookAuthor=\(bookAuthor), existingPageCount=\(existingPageCount)")
+        // Initialize existing pages for editing
+        self.existingPageList = book.pages.enumerated().map { index, page in
+            ExistingPageItem(
+                id: page.id,
+                pageNumber: page.pageNumber,
+                originalImagePath: page.originalImagePath,
+                extractedText: page.extractedText,
+                position: index
+            )
+        }
+
+        LoggingService.shared.debug("EditBookViewModel init complete: bookTitle=\(bookTitle), bookAuthor=\(bookAuthor), existingPageCount=\(existingPageCount), existingPageList.count=\(existingPageList.count)")
     }
 
     @MainActor
@@ -97,6 +125,47 @@ final class EditBookViewModel {
             )
 
             LoggingService.shared.info("EditBookViewModel: Successfully edited book: \(editedBook.title) (added \(pageList.count) pages, final total: \(editedBook.totalPages))")
+            editComplete = true
+
+            // Notify parent view that a book was edited
+            onBookEdited?()
+
+        } catch {
+            showError(message: error.localizedDescription)
+        }
+
+        isEditing = false
+    }
+
+    @MainActor
+    func reorderExistingPages(from source: IndexSet, to destination: Int) {
+        LoggingService.shared.debug("EditBookViewModel: reorderExistingPages from \(source) to \(destination)")
+        existingPageList.move(fromOffsets: source, toOffset: destination)
+        // Update positions
+        for (index, _) in existingPageList.enumerated() {
+            existingPageList[index].position = index
+        }
+        LoggingService.shared.debug("EditBookViewModel: Reordered existing pages, new count: \(existingPageList.count)")
+    }
+
+    @MainActor
+    func savePageReorder() async {
+        LoggingService.shared.debug("EditBookViewModel: savePageReorder called")
+
+        guard !existingPageList.isEmpty else {
+            showError(message: "No pages to reorder")
+            return
+        }
+
+        isEditing = true
+
+        do {
+            let newPageOrder = existingPageList.map { $0.id }
+            LoggingService.shared.info("EditBookViewModel: Saving new page order with \(newPageOrder.count) pages")
+
+            let updatedBook = try await editBookUseCase.reorderPages(book: existingBook, newPageOrder: newPageOrder)
+
+            LoggingService.shared.info("EditBookViewModel: Successfully reordered pages in book '\(updatedBook.title)'")
             editComplete = true
 
             // Notify parent view that a book was edited

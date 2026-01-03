@@ -506,4 +506,15 @@ private class MockBookRepository: BookRepository {
     func updateReadingProgress(bookId: UUID, pageIndex: Int) async throws {
         // Mock implementation
     }
+
+    func reorderPages(bookId: UUID, newPageOrder: [UUID]) async throws -> AppBook {
+        // Mock implementation - return a dummy book
+        return AppBook(
+            title: "Mock Book",
+            author: "Mock Author",
+            pages: [],
+            currentPageIndex: 0,
+            isLocal: true
+        )
+    }
 }

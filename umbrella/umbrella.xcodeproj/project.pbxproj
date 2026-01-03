@@ -24,6 +24,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		C0681FA22F08FC08006BD589 /* umbrella.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; path = umbrella.xctestplan; sourceTree = "<group>"; };
 		C0D890322F056F6400699163 /* umbrella.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = umbrella.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C0D890442F056F6500699163 /* umbrellaTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = umbrellaTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C0D8904E2F056F6500699163 /* umbrellaUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = umbrellaUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -75,6 +76,7 @@
 		C0D890292F056F6400699163 = {
 			isa = PBXGroup;
 			children = (
+				C0681FA22F08FC08006BD589 /* umbrella.xctestplan */,
 				C0D890342F056F6400699163 /* umbrella */,
 				C0D890472F056F6500699163 /* umbrellaTests */,
 				C0D890512F056F6500699163 /* umbrellaUITests */,

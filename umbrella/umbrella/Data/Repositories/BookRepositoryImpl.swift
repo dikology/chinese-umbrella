@@ -401,4 +401,56 @@ class BookRepositoryImpl: BookRepository {
             segmentEntity.update(from: segment)
         }
     }
+
+    func reorderPages(bookId: UUID, newPageOrder: [UUID]) async throws -> AppBook {
+        LoggingService.shared.debug("BookRepositoryImpl: reorderPages called for book \(bookId) with \(newPageOrder.count) pages")
+
+        let context = coreDataManager.backgroundContext
+
+        return try await context.perform {
+            // Get the existing book
+            let fetchRequest = CDBook.fetchRequest()
+            fetchRequest.predicate = NSPredicate(format: "id == %@", bookId as CVarArg)
+            fetchRequest.fetchLimit = 1
+
+            guard let existingBook = try context.fetch(fetchRequest).first else {
+                LoggingService.shared.error("BookRepositoryImpl: Book not found with id \(bookId)")
+                throw BookRepositoryError.bookNotFound
+            }
+
+            LoggingService.shared.debug("BookRepositoryImpl: Found book '\(existingBook.title ?? "Unknown")' with \(existingBook.pages.count) pages")
+
+            // Validate that all page IDs exist in the book
+            let existingPageIds = Set(existingBook.pages.map { $0.id })
+            let requestedPageIds = Set(newPageOrder)
+
+            guard existingPageIds == requestedPageIds else {
+                LoggingService.shared.error("BookRepositoryImpl: Page IDs mismatch. Existing: \(existingPageIds.count), Requested: \(requestedPageIds.count)")
+                throw BookRepositoryError.invalidBookData
+            }
+
+            // Update page numbers based on new order
+            for (newPageNumber, pageId) in newPageOrder.enumerated() {
+                if let pageEntity = existingBook.pages.first(where: { $0.id == pageId }) {
+                    pageEntity.pageNumber = Int16(newPageNumber + 1) // Page numbers start from 1
+                    LoggingService.shared.debug("BookRepositoryImpl: Updated page \(pageId) to page number \(newPageNumber + 1)")
+                }
+            }
+
+            // Sort the pages array by the new page numbers
+            let sortedPages = existingBook.pages.sorted { $0.pageNumber < $1.pageNumber }
+            existingBook.pages = Set(sortedPages)
+
+            // Update the book's updatedDate
+            existingBook.updatedDate = Date()
+
+            LoggingService.shared.debug("BookRepositoryImpl: Saving reordered book...")
+            try context.save()
+
+            let resultBook = existingBook.toDomain()
+            LoggingService.shared.debug("BookRepositoryImpl: Successfully reordered pages for book '\(resultBook.title)'")
+
+            return resultBook
+        }
+    }
 }

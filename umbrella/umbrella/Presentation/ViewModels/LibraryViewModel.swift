@@ -390,6 +390,14 @@ private final class MockBookRepository: BookRepository {
     func updateReadingProgress(bookId: UUID, pageIndex: Int) async throws {
         // No-op for preview
     }
+
+    func reorderPages(bookId: UUID, newPageOrder: [UUID]) async throws -> AppBook {
+        // For preview, just return the book unchanged
+        guard let book = books.first(where: { $0.id == bookId }) else {
+            throw BookRepositoryError.bookNotFound
+        }
+        return book
+    }
 }
 
 

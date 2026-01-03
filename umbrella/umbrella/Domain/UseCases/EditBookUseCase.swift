@@ -12,6 +12,9 @@ import UIKit
 protocol EditBookUseCase {
     /// Add new pages to an existing book
     func addPagesToBook(book: AppBook, newImages: [UIImage], updatedTitle: String?, updatedAuthor: String?) async throws -> AppBook
+
+    /// Reorder pages within an existing book
+    func reorderPages(book: AppBook, newPageOrder: [UUID]) async throws -> AppBook
 }
 
 /// Implementation of EditBookUseCase
@@ -124,6 +127,61 @@ class DefaultEditBookUseCase: EditBookUseCase {
         return savedBook
     }
 
+    func reorderPages(book: AppBook, newPageOrder: [UUID]) async throws -> AppBook {
+        LoggingService.shared.info("EditBookUseCase: Reordering \(newPageOrder.count) pages in book '\(book.title)'")
+
+        // Validate that the new page order contains all pages
+        let bookPageIds = Set(book.pages.map { $0.id })
+        let requestedPageIds = Set(newPageOrder)
+
+        guard bookPageIds == requestedPageIds else {
+            LoggingService.shared.error("EditBookUseCase: Page IDs mismatch. Book has \(bookPageIds.count) pages, requested \(requestedPageIds.count)")
+            throw EditBookError.invalidPageOrder
+        }
+
+        // Create a mapping from page ID to new page number
+        var pageIdToNewNumber = [UUID: Int]()
+        for (index, pageId) in newPageOrder.enumerated() {
+            pageIdToNewNumber[pageId] = index + 1 // Page numbers start from 1
+        }
+
+        // Create updated pages with new page numbers but maintain original order for repository
+        let updatedPages = book.pages.map { page in
+            AppBookPage(
+                bookId: page.bookId,
+                pageNumber: pageIdToNewNumber[page.id] ?? page.pageNumber,
+                originalImagePath: page.originalImagePath,
+                extractedText: page.extractedText,
+                words: page.words,
+                wordsMarked: page.wordsMarked
+            )
+        }
+
+        // Create updated book
+        let updatedBook = AppBook(
+            id: book.id,
+            title: book.title,
+            author: book.author,
+            pages: updatedPages,
+            currentPageIndex: book.currentPageIndex,
+            isLocal: book.isLocal,
+            language: book.language,
+            genre: book.genre,
+            description: book.description,
+            totalWords: book.totalWords,
+            estimatedReadingTimeMinutes: book.estimatedReadingTimeMinutes,
+            difficulty: book.difficulty,
+            tags: book.tags
+        )
+
+        // Save via repository
+        let savedBook = try await bookRepository.reorderPages(bookId: book.id, newPageOrder: newPageOrder)
+
+        LoggingService.shared.info("EditBookUseCase: Successfully reordered pages in book '\(savedBook.title)'")
+
+        return savedBook
+    }
+
     private func validateImages(_ images: [UIImage]) -> [ImageValidationResult] {
         return images.map { imageProcessingService.validateImageForOCR($0) }
     }
@@ -169,6 +227,7 @@ enum EditBookError: LocalizedError, Equatable {
     case noValidImages
     case ocrFailed(page: Int, error: Error)
     case updateFailed(error: Error)
+    case invalidPageOrder
 
     var errorDescription: String? {
         switch self {
@@ -178,6 +237,8 @@ enum EditBookError: LocalizedError, Equatable {
             return "Failed to process page \(page): \(error.localizedDescription)"
         case .updateFailed(let error):
             return "Failed to update book: \(error.localizedDescription)"
+        case .invalidPageOrder:
+            return "Invalid page order. The page order must include all pages in the book."
         }
     }
 
@@ -190,6 +251,8 @@ enum EditBookError: LocalizedError, Equatable {
             return lhsPage == rhsPage
         case (.updateFailed, .updateFailed):
             return true // Don't compare the actual Error values
+        case (.invalidPageOrder, .invalidPageOrder):
+            return true
         default:
             return false
         }

@@ -286,10 +286,76 @@ struct LibraryEditBookIntegrationTests {
         #expect(updatedBook.pages[0].words.first?.word == "original")
     }
 
-    // MARK: - Mock Classes
+    @Test("EditBookScreen can reorder existing pages")
+    @MainActor
+    func testEditBookScreenReorderPages() async throws {
+        // Given: A book with multiple pages
+        let testBook = createTestBook(title: "Reorder Integration Test", pageCount: 4)
+        let editScreen = EditBookScreen(
+            book: testBook,
+            editBookUseCase: mockEditBookUseCase
+        )
+
+        // Create a view model to test reordering
+        let viewModel = EditBookViewModel(book: testBook, editBookUseCase: mockEditBookUseCase)
+
+        // Verify initial state
+        #expect(viewModel.existingPageList.count == 4)
+        let originalPageIds = viewModel.existingPageList.map { $0.id }
+
+        // When: Reorder pages (move page 3 to position 0)
+        viewModel.reorderExistingPages(from: IndexSet([2]), to: 0)
+
+        // Then: Verify the reordering worked
+        #expect(viewModel.existingPageList.count == 4)
+        let reorderedPageIds = viewModel.existingPageList.map { $0.id }
+        #expect(reorderedPageIds != originalPageIds)
+
+        // Verify page 3 (originally at index 2) is now at index 0
+        #expect(reorderedPageIds[0] == originalPageIds[2])
+
+        // When: Save the reordering
+        let reorderedBook = AppBook(
+            id: testBook.id,
+            title: testBook.title,
+            author: testBook.author,
+            pages: viewModel.existingPageList.enumerated().map { index, page in
+                AppBookPage(
+                    bookId: testBook.id,
+                    pageNumber: index + 1,
+                    originalImagePath: page.originalImagePath,
+                    extractedText: page.extractedText,
+                    words: []
+                )
+            },
+            currentPageIndex: testBook.currentPageIndex,
+            isLocal: testBook.isLocal,
+            language: testBook.language,
+            genre: testBook.genre,
+            description: testBook.description,
+            totalWords: testBook.totalWords,
+            estimatedReadingTimeMinutes: testBook.estimatedReadingTimeMinutes,
+            difficulty: testBook.difficulty,
+            tags: testBook.tags
+        )
+        mockEditBookUseCase.reorderPagesResult = reorderedBook
+
+        await viewModel.savePageReorder()
+
+        // Then: Verify save completed
+        #expect(viewModel.editComplete == true)
+        #expect(mockEditBookUseCase.reorderPagesCallCount == 1)
+    }
+}
+
+// MARK: - Mock Classes
 
 private class MockEditBookUseCase: EditBookUseCase {
     var shouldThrowError = false
+
+    // Page reordering properties
+    var reorderPagesCallCount = 0
+    var reorderPagesResult: AppBook?
 
     func addPagesToBook(book: AppBook, newImages: [UIImage], updatedTitle: String?, updatedAuthor: String?) async throws -> AppBook {
         if shouldThrowError {
@@ -338,7 +404,16 @@ private class MockEditBookUseCase: EditBookUseCase {
             tags: book.tags
         )
     }
-}
+
+    func reorderPages(book: AppBook, newPageOrder: [UUID]) async throws -> AppBook {
+        reorderPagesCallCount += 1
+
+        if shouldThrowError {
+            throw NSError(domain: "TestError", code: 1, userInfo: [NSLocalizedDescriptionKey: "Reorder test error"])
+        }
+
+        return reorderPagesResult ?? book
+    }
 }
 
 private class MockBookRepository: BookRepository {
@@ -406,6 +481,14 @@ private class MockBookRepository: BookRepository {
 
     func updateReadingProgress(bookId: UUID, pageIndex: Int) async throws {
         // Do nothing for mock
+    }
+
+    func reorderPages(bookId: UUID, newPageOrder: [UUID]) async throws -> AppBook {
+        // For integration tests, just return the book unchanged
+        guard let book = books.first(where: { $0.id == bookId }) else {
+            throw BookRepositoryError.bookNotFound
+        }
+        return book
     }
 }
 
