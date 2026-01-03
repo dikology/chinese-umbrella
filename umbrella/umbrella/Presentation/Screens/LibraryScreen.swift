@@ -210,7 +210,8 @@ struct LibraryScreen: View {
                 }
             }
             .navigationDestination(item: $selectedBook) { book in
-                ReadingScreen(book: book)
+                ReadingScreen(book: book, userId: viewModel.currentUserId ?? UUID())
+                    .environment(\.managedObjectContext, DIContainer.coreDataManager.viewContext)
             }
         }
     }

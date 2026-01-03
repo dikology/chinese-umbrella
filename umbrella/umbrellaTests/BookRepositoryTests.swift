@@ -30,6 +30,7 @@ struct BookRepositoryTests {
 
     // MARK: - Setup Helpers
 
+    @MainActor
     private func createTestBook(
         title: String = "Test Book",
         author: String? = "Test Author",
@@ -77,6 +78,7 @@ struct BookRepositoryTests {
         return user
     }
 
+    @MainActor
     private func createAndSaveTestBook(title: String = "Test Book", pageCount: Int = 1) async throws -> AppBook {
         let _ = try await createTestUser()
 
@@ -552,6 +554,7 @@ struct BookRepositoryTests {
 
     // MARK: - Page Reordering Tests
 
+    @MainActor
     @Test func testReorderPages_successfullyReordersPages() async throws {
         // Given
         let book = try await createAndSaveTestBook(title: "Reorder Test Book", pageCount: 4)
