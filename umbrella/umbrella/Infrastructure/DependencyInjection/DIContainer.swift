@@ -75,14 +75,12 @@ struct DIContainer {
     // MARK: - View Models
 
     @MainActor
-    static let authViewModel = AuthViewModel(authUseCase: authUseCase)
-
-    // Note: LibraryViewModel is now created in ContentView to share the same authViewModel instance
-    // static let libraryViewModel = LibraryViewModel(bookRepository: bookRepository, authViewModel: authViewModel)
-
+    static let anonymousUserService = AnonymousUserService(keychainService: keychainService, authRepository: authRepository, coreDataManager: coreDataManager)
+    
     @MainActor
-    static func makeReadingViewModel() -> ReadingViewModel {
+    static func makeReadingViewModel(userId: UUID) -> ReadingViewModel {
         return ReadingViewModel(
+            userId: userId,
             bookRepository: bookRepository,
             dictionaryRepository: dictionaryRepository,
             wordMarkerRepository: wordMarkerRepository,

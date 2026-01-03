@@ -265,5 +265,20 @@ class AuthRepositoryImpl: AuthRepository {
             try context.save()
         }
     }
+
+    internal func getUserById(_ userId: UUID) async throws -> AppUser? {
+        try await coreDataManager.performBackgroundTask { context in
+            let request = UserEntity.fetchRequest()
+            request.predicate = NSPredicate(format: "id == %@", userId as CVarArg)
+            request.fetchLimit = 1
+
+            let fetchedObjects = try context.fetch(request)
+            guard let userEntity = fetchedObjects.first else {
+                return nil
+            }
+
+            return AppUser.fromEntity(userEntity)
+        }
+    }
 }
 

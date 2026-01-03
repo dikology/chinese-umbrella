@@ -14,14 +14,16 @@ struct ReadingScreen: View {
     @State private var showingDictionaryPopup = false
 
     private let book: AppBook
+    private let userId: UUID
 
     private var colors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
     }
 
-    init(book: AppBook) {
+    init(book: AppBook, userId: UUID) {
         self.book = book
-        self.viewModel = DIContainer.makeReadingViewModel()
+        self.viewModel = DIContainer.makeReadingViewModel(userId: userId)
+        self.userId = userId
     }
 
     var body: some View {
@@ -397,7 +399,8 @@ struct FlowingLayoutExample: View {
         pages: [mockPage]
     )
 
-    return ReadingScreen(book: mockBook)
+    ReadingScreen(book: mockBook, userId: UUID())
+        .environment(\.managedObjectContext, DIContainer.coreDataManager.viewContext)
 }
 
 #Preview("Flowing Text Layout") {

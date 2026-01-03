@@ -9,20 +9,21 @@ import SwiftUI
 
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
-    let authViewModel: AuthViewModel
+    let currentUser: AppUser
 
-    init(authViewModel: AuthViewModel) {
-        self.authViewModel = authViewModel
+    init(currentUser: AppUser) {
+        self.currentUser = currentUser
     }
 
     var body: some View {
         LibraryScreen(viewModel: LibraryViewModel(
             bookRepository: DIContainer.bookRepository,
-            authViewModel: authViewModel
+            userId: currentUser.id
         ))
     }
 }
 
 #Preview {
-    ContentView(authViewModel: AuthViewModel(authUseCase: AuthUseCase(repository: AuthRepositoryImpl(), keychainService: KeychainService())))
+    ContentView(currentUser: AppUser(id: UUID(), email: "test@test.com", displayName: "Test User"))
+        .environment(\.managedObjectContext, DIContainer.coreDataManager.viewContext)
 }

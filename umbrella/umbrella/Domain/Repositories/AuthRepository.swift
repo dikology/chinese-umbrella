@@ -30,6 +30,9 @@ protocol AuthRepository {
 
     /// Delete user account
     func deleteUser(_ userId: UUID) async throws
+
+    /// Get user by ID
+    func getUserById(_ userId: UUID) async throws -> AppUser?
 }
 
 /// Errors that can occur during authentication

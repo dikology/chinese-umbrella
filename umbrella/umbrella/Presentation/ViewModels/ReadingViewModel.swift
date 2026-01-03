@@ -31,15 +31,18 @@ final class ReadingViewModel {
     private let dictionaryRepository: DictionaryRepository
     private let wordMarkerRepository: WordMarkerRepository
     private let textSegmentationService: TextSegmentationService
-
+    private let userId: UUID
+    
     // MARK: - Initialization
 
     init(
+        userId: UUID,
         bookRepository: BookRepository,
         dictionaryRepository: DictionaryRepository,
         wordMarkerRepository: WordMarkerRepository,
         textSegmentationService: TextSegmentationService
     ) {
+        self.userId = userId
         self.bookRepository = bookRepository
         self.dictionaryRepository = dictionaryRepository
         self.wordMarkerRepository = wordMarkerRepository
@@ -143,7 +146,7 @@ final class ReadingViewModel {
         // Persist to repository
         do {
             let markedWord = AppMarkedWord(
-                userId: UUID(), // TODO: Get from auth context
+                userId: userId,
                 word: word,
                 readingDate: Date(),
                 contextSnippet: extractContextSnippet(for: word),

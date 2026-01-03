@@ -18,7 +18,7 @@ protocol AuthViewModelProtocol {
 @Observable
 final class LibraryViewModel {
     private let bookRepository: BookRepository
-    private let authViewModel: AuthViewModelProtocol
+    private let userId: UUID
 
     // Data
     var books: [AppBook] = []
@@ -38,20 +38,18 @@ final class LibraryViewModel {
 
     // Computed properties for UI access
     var currentUserId: UUID? {
-        authViewModel.currentUser?.id
+        userId
     }
 
-    init(bookRepository: BookRepository, authViewModel: AuthViewModelProtocol) {
+    init(bookRepository: BookRepository, userId: UUID) {
         self.bookRepository = bookRepository
-        self.authViewModel = authViewModel
+        self.userId = userId
     }
 
     // MARK: - Data Loading
 
     @MainActor
     func loadBooks() async {
-        guard let userId = authViewModel.currentUser?.id else { return }
-
         LoggingService.shared.debug("LibraryViewModel: loadBooks called")
         isLoading = true
         defer { isLoading = false }
@@ -85,7 +83,6 @@ final class LibraryViewModel {
         }
 
         do {
-            guard let userId = authViewModel.currentUser?.id else { return }
             filteredBooks = try await bookRepository.searchBooks(query: query, userId: userId)
         } catch {
             print("Failed to search books: \(error)")
@@ -403,35 +400,12 @@ private final class MockBookRepository: BookRepository {
 
 // MARK: - Preview Instance
 
-/// Mock AuthViewModel for previews
-private final class MockAuthViewModel: AuthViewModelProtocol {
-    private let mockUser = AppUser(
-        id: UUID(),
-        email: "preview@example.com",
-        displayName: "Preview User",
-        hskLevel: 3,
-        vocabularyMasteryPct: 25.0
-    )
-
-    init() {}
-
-    var isAuthenticated: Bool { true }
-    var currentUser: AppUser? { mockUser }
-    var isLoading: Bool { false }
-    var errorMessage: String? { nil }
-
-    func signUp() async {}
-    func signIn() async {}
-    func signInWithApple(credential: ASAuthorizationAppleIDCredential) async {}
-    func logout() async {}
-}
-
 extension LibraryViewModel {
     /// Preview instance with mock data for SwiftUI previews
     static var preview: LibraryViewModel {
         let viewModel = LibraryViewModel(
             bookRepository: MockBookRepository(),
-            authViewModel: MockAuthViewModel()
+            userId: UUID()
         )
         // Load the mock books
         Task {

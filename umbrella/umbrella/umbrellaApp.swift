@@ -8,12 +8,14 @@
 import SwiftUI
 import CoreData
 
-@main
-struct umbrellaApp: App {
-    @State private var authViewModel = DIContainer.authViewModel
-    let coreDataManager = CoreDataManager.shared
+/// Observable object to manage app initialization state
+@Observable
+final class AppInitializationState {
+    var currentUser: AppUser?
+    var isInitializing = true
 
-    init() {
+    @MainActor
+    func initializeApp() async {
         // Preload dictionary in background
         Task {
             do {
@@ -23,17 +25,45 @@ struct umbrellaApp: App {
                 print("Failed to preload dictionary: \(error)")
             }
         }
+
+        // Get or create anonymous user
+        do {
+            let anonymousService = DIContainer.anonymousUserService
+            currentUser = try await anonymousService.getOrCreateAnonymousUser()
+            isInitializing = false
+        } catch {
+            print("Failed to initialize anonymous user: \(error)")
+            // Create fallback user
+            currentUser = AppUser(
+                email: "fallback@local.device",
+                displayName: "Local User"
+            )
+            isInitializing = false
+        }
+    }
+}
+
+@main
+struct umbrellaApp: App {
+    @State private var appState = AppInitializationState()
+    let coreDataManager = CoreDataManager.shared
+
+    init() {
+        // Initialize app state asynchronously
+        let state = appState
+        Task {
+            await state.initializeApp()
+        }
     }
 
     var body: some Scene {
         WindowGroup {
-            if authViewModel.isAuthenticated {
-                // Main app content when authenticated
-                ContentView(authViewModel: authViewModel)
-                    .environment(\.managedObjectContext, coreDataManager.viewContext)
-            } else {
-                // Authentication screen when not authenticated
-                AuthScreen(viewModel: authViewModel)
+            if appState.isInitializing {
+                // Show splash/loading screen while initializing
+                LoadingView()
+            } else if let user = appState.currentUser {
+                // Go directly to main app
+                ContentView(currentUser: user)
                     .environment(\.managedObjectContext, coreDataManager.viewContext)
             }
         }
