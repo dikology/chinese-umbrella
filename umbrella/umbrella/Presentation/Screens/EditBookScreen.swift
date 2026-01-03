@@ -61,18 +61,34 @@ struct EditBookScreen: View {
                         }
                         .padding()
 
-                        // Existing pages display
-                        if viewModel.existingPageCount > 0 {
+                        // Existing pages display and editing
+                        if !viewModel.existingPageList.isEmpty {
                             VStack(alignment: .leading, spacing: 12) {
-                                Text("Existing Pages: \(viewModel.existingPageCount)")
+                                Text("Existing Pages")
                                     .font(.headline)
-                                // Show thumbnail grid of existing pages
+
+                                PageGridView(
+                                    pages: $viewModel.pageList,
+                                    existingPages: viewModel.existingPageList,
+                                    onReorderExistingPages: { source, destination in
+                                        viewModel.reorderExistingPages(from: source, to: destination)
+                                    }
+                                )
                             }
                             .padding()
                         }
 
                         // Add new pages
-                        PageGridView(pages: $viewModel.pageList)
+                        if viewModel.existingPageList.isEmpty {
+                            PageGridView(pages: $viewModel.pageList)
+                        } else {
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Add New Pages")
+                                    .font(.headline)
+                                PageGridView(pages: $viewModel.pageList)
+                            }
+                            .padding()
+                        }
 
                         // Upload buttons
                         UploadMethodButtons(
@@ -85,17 +101,32 @@ struct EditBookScreen: View {
                 }
 
                 // Fixed button at bottom
-                if !viewModel.pageList.isEmpty ||
-                   viewModel.bookTitle != viewModel.existingBook.title {
-                    PrimaryButton(
-                        title: viewModel.isEditing ? "Updating..." : "Update Book",
-                        isLoading: viewModel.isEditing,
-                        isEnabled: !viewModel.bookTitle.isEmpty
-                    ) {
-                        Task { await viewModel.editBook() }
+                VStack(spacing: 12) {
+                    // Save reordering button (only show if there are existing pages and changes)
+                    if !viewModel.existingPageList.isEmpty {
+                        PrimaryButton(
+                            title: viewModel.isEditing ? "Saving Order..." : "Save Page Order",
+                            isLoading: viewModel.isEditing,
+                            isEnabled: true
+                        ) {
+                            Task { await viewModel.savePageReorder() }
+                        }
                     }
-                    .padding()
+
+                    // Update book button (for adding pages or changing metadata)
+                    if !viewModel.pageList.isEmpty ||
+                       viewModel.bookTitle != viewModel.existingBook.title ||
+                       viewModel.bookAuthor != (viewModel.existingBook.author ?? "") {
+                        PrimaryButton(
+                            title: viewModel.isEditing ? "Updating..." : "Update Book",
+                            isLoading: viewModel.isEditing,
+                            isEnabled: !viewModel.bookTitle.isEmpty
+                        ) {
+                            Task { await viewModel.editBook() }
+                        }
+                    }
                 }
+                .padding()
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

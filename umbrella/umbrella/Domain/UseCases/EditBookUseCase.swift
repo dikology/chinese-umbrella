@@ -12,6 +12,9 @@ import UIKit
 protocol EditBookUseCase {
     /// Add new pages to an existing book
     func addPagesToBook(book: AppBook, newImages: [UIImage], updatedTitle: String?, updatedAuthor: String?) async throws -> AppBook
+
+    /// Reorder pages within an existing book
+    func reorderPages(book: AppBook, newPageOrder: [UUID]) async throws -> AppBook
 }
 
 /// Implementation of EditBookUseCase
@@ -34,6 +37,8 @@ class DefaultEditBookUseCase: EditBookUseCase {
     }
 
     func addPagesToBook(book: AppBook, newImages: [UIImage], updatedTitle: String?, updatedAuthor: String?) async throws -> AppBook {
+        LoggingService.shared.info("EditBookUseCase: Starting to add \(newImages.count) pages to book '\(book.title)' (current pages: \(book.totalPages))")
+
         // Validate images first
         let validationResults = validateImages(newImages)
         let validImages = zip(newImages, validationResults)
@@ -41,32 +46,41 @@ class DefaultEditBookUseCase: EditBookUseCase {
             .map { $0.0 }
 
         guard !validImages.isEmpty else {
+            LoggingService.shared.error("EditBookUseCase: No valid images found after validation")
             throw EditBookError.noValidImages
         }
 
         if validImages.count < newImages.count {
-            print("Warning: \(newImages.count - validImages.count) images were filtered out due to validation failures")
+            LoggingService.shared.warning("EditBookUseCase: \(newImages.count - validImages.count) images were filtered out due to validation failures")
         }
+
+        LoggingService.shared.debug("EditBookUseCase: Processing \(validImages.count) valid images")
 
         // Process images with OCR
         var processedImages: [ProcessedImage] = []
         for (index, image) in validImages.enumerated() {
             do {
+                LoggingService.shared.debug("EditBookUseCase: Processing image \(index + 1)/\(validImages.count)")
                 let processedImage = try await processImage(image)
                 processedImages.append(processedImage)
-                print("Processed new page \(index + 1)/\(validImages.count)")
+                LoggingService.shared.info("EditBookUseCase: Successfully processed new page \(index + 1)/\(validImages.count)")
             } catch {
-                print("Failed to process new page \(index + 1): \(error)")
+                LoggingService.shared.error("EditBookUseCase: Failed to process new page \(index + 1): \(error)")
                 throw EditBookError.ocrFailed(page: index + 1, error: error)
             }
         }
+
+        LoggingService.shared.debug("EditBookUseCase: Creating \(processedImages.count) new pages starting from page \(book.totalPages + 1)")
 
         // Create new book pages starting from the next page number
         var newPages: [AppBookPage] = []
         let startingPageNumber = book.totalPages + 1
 
+        LoggingService.shared.debug("EditBookUseCase: Creating pages starting from page number \(startingPageNumber)")
+
         for (index, processedImage) in processedImages.enumerated() {
             // Segment the text for this page
+            LoggingService.shared.debug("EditBookUseCase: Segmenting text for page \(startingPageNumber + index)")
             let segmentedWords = try await segmentText(processedImage.extractedText)
 
             let page = AppBookPage(
@@ -78,10 +92,13 @@ class DefaultEditBookUseCase: EditBookUseCase {
                 wordsMarked: []
             )
             newPages.append(page)
+            LoggingService.shared.debug("EditBookUseCase: Created page \(page.pageNumber) with \(segmentedWords.count) words")
         }
 
         // Create updated book with new pages and metadata
         let allPages = book.pages + newPages
+        LoggingService.shared.info("EditBookUseCase: Combined book now has \(allPages.count) pages total (\(book.pages.count) original + \(newPages.count) new)")
+
         let finalTitle = updatedTitle ?? book.title
         let finalAuthor = updatedAuthor ?? book.author
         let updatedBook = AppBook(
@@ -100,8 +117,68 @@ class DefaultEditBookUseCase: EditBookUseCase {
             tags: book.tags
         )
 
+        LoggingService.shared.info("EditBookUseCase: Calling bookRepository.updateBook with book containing \(updatedBook.pages.count) pages")
+
         // Update via repository
         let savedBook = try await bookRepository.updateBook(updatedBook)
+
+        LoggingService.shared.info("EditBookUseCase: Successfully updated book. Final page count: \(savedBook.totalPages)")
+
+        return savedBook
+    }
+
+    func reorderPages(book: AppBook, newPageOrder: [UUID]) async throws -> AppBook {
+        LoggingService.shared.info("EditBookUseCase: Reordering \(newPageOrder.count) pages in book '\(book.title)'")
+
+        // Validate that the new page order contains all pages
+        let bookPageIds = Set(book.pages.map { $0.id })
+        let requestedPageIds = Set(newPageOrder)
+
+        guard bookPageIds == requestedPageIds else {
+            LoggingService.shared.error("EditBookUseCase: Page IDs mismatch. Book has \(bookPageIds.count) pages, requested \(requestedPageIds.count)")
+            throw EditBookError.invalidPageOrder
+        }
+
+        // Create a mapping from page ID to new page number
+        var pageIdToNewNumber = [UUID: Int]()
+        for (index, pageId) in newPageOrder.enumerated() {
+            pageIdToNewNumber[pageId] = index + 1 // Page numbers start from 1
+        }
+
+        // Create updated pages with new page numbers but maintain original order for repository
+        let updatedPages = book.pages.map { page in
+            AppBookPage(
+                bookId: page.bookId,
+                pageNumber: pageIdToNewNumber[page.id] ?? page.pageNumber,
+                originalImagePath: page.originalImagePath,
+                extractedText: page.extractedText,
+                words: page.words,
+                wordsMarked: page.wordsMarked
+            )
+        }
+
+        // Create updated book
+        let updatedBook = AppBook(
+            id: book.id,
+            title: book.title,
+            author: book.author,
+            pages: updatedPages,
+            currentPageIndex: book.currentPageIndex,
+            isLocal: book.isLocal,
+            language: book.language,
+            genre: book.genre,
+            description: book.description,
+            totalWords: book.totalWords,
+            estimatedReadingTimeMinutes: book.estimatedReadingTimeMinutes,
+            difficulty: book.difficulty,
+            tags: book.tags
+        )
+
+        // Save via repository
+        let savedBook = try await bookRepository.reorderPages(bookId: book.id, newPageOrder: newPageOrder)
+
+        LoggingService.shared.info("EditBookUseCase: Successfully reordered pages in book '\(savedBook.title)'")
+
         return savedBook
     }
 
@@ -150,6 +227,7 @@ enum EditBookError: LocalizedError, Equatable {
     case noValidImages
     case ocrFailed(page: Int, error: Error)
     case updateFailed(error: Error)
+    case invalidPageOrder
 
     var errorDescription: String? {
         switch self {
@@ -159,6 +237,8 @@ enum EditBookError: LocalizedError, Equatable {
             return "Failed to process page \(page): \(error.localizedDescription)"
         case .updateFailed(let error):
             return "Failed to update book: \(error.localizedDescription)"
+        case .invalidPageOrder:
+            return "Invalid page order. The page order must include all pages in the book."
         }
     }
 
@@ -171,6 +251,8 @@ enum EditBookError: LocalizedError, Equatable {
             return lhsPage == rhsPage
         case (.updateFailed, .updateFailed):
             return true // Don't compare the actual Error values
+        case (.invalidPageOrder, .invalidPageOrder):
+            return true
         default:
             return false
         }

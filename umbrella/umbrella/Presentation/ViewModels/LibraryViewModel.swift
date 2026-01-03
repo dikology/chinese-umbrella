@@ -52,14 +52,24 @@ final class LibraryViewModel {
     func loadBooks() async {
         guard let userId = authViewModel.currentUser?.id else { return }
 
+        LoggingService.shared.debug("LibraryViewModel: loadBooks called")
         isLoading = true
         defer { isLoading = false }
 
         do {
-            books = try await bookRepository.getBooks(for: userId)
+            let loadedBooks = try await bookRepository.getBooks(for: userId)
+            LoggingService.shared.debug("LibraryViewModel: Loaded \(loadedBooks.count) books")
+            for (index, book) in loadedBooks.enumerated() {
+                LoggingService.shared.debug("LibraryViewModel: Book \(index): '\(book.title)' has \(book.totalPages) pages")
+            }
+            books = loadedBooks
             applyFiltering()
+            LoggingService.shared.debug("LibraryViewModel: Books updated, displayBooks count: \(displayBooks.count)")
+            for (index, book) in displayBooks.enumerated() {
+                LoggingService.shared.debug("LibraryViewModel: Display book \(index): '\(book.title)' has \(book.totalPages) pages")
+            }
         } catch {
-            print("Failed to load books: \(error)")
+            LoggingService.shared.error("LibraryViewModel: Failed to load books: \(error)")
             // TODO: Show error to user
         }
     }
@@ -379,6 +389,14 @@ private final class MockBookRepository: BookRepository {
 
     func updateReadingProgress(bookId: UUID, pageIndex: Int) async throws {
         // No-op for preview
+    }
+
+    func reorderPages(bookId: UUID, newPageOrder: [UUID]) async throws -> AppBook {
+        // For preview, just return the book unchanged
+        guard let book = books.first(where: { $0.id == bookId }) else {
+            throw BookRepositoryError.bookNotFound
+        }
+        return book
     }
 }
 

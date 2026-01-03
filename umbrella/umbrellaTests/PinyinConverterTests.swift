@@ -27,7 +27,7 @@ struct PinyinConverterTests {
         // Test multi-syllable words
         #expect(PinyinConverter.convertToneNumbersToMarks("ni3 hao3") == "nǐ hǎo")
         #expect(PinyinConverter.convertToneNumbersToMarks("zai4 jian4") == "zài jiàn")
-        #expect(PinyinConverter.convertToneNumbersToMarks("xie1 xie5") == "xiē xiè")
+        #expect(PinyinConverter.convertToneNumbersToMarks("xie1 xie5") == "xiē xie")
     }
 
     @Test("Vowel precedence rules")

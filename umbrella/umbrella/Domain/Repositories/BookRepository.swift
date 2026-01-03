@@ -94,6 +94,9 @@ protocol BookRepository {
 
     /// Update reading progress for a book
     func updateReadingProgress(bookId: UUID, pageIndex: Int) async throws
+
+    /// Reorder pages within a book
+    func reorderPages(bookId: UUID, newPageOrder: [UUID]) async throws -> AppBook
 }
 
 /// Errors that can occur during book operations

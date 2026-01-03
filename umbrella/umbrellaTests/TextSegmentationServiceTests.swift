@@ -105,7 +105,7 @@ struct TextSegmentationServiceTests {
             segment.word == "Hello" || segment.word == "This" || segment.word == "is" || segment.word == "a" || segment.word == "test"
         }
         let hasChineseWords = wordSegments.contains { segment in
-            segment.word == "世" || segment.word == "界"
+            segment.word == "世界"
         }
         let hasPunctuation = wordSegments.contains { segment in
             segment.word == "！" || segment.word == "."

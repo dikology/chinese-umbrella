@@ -75,7 +75,12 @@ struct EditBookViewModelTests {
         let viewModel = EditBookViewModel(book: book, editBookUseCase: mockUseCase)
 
         // When
-        viewModel.selectedImages = [createTestImage(), createTestImage(), createTestImage()]
+        let pageItems = [
+            PageItem(id: UUID(), uiImage: createTestImage(), position: 0),
+            PageItem(id: UUID(), uiImage: createTestImage(), position: 1),
+            PageItem(id: UUID(), uiImage: createTestImage(), position: 2)
+        ]
+        viewModel.pageList = pageItems
 
         // Then
         #expect(viewModel.existingPageCount == 2)
@@ -102,7 +107,7 @@ struct EditBookViewModelTests {
 
         // When
         viewModel.bookTitle = ""
-        viewModel.selectedImages = [createTestImage()]
+        viewModel.pageList = [PageItem(id: UUID(), uiImage: createTestImage(), position: 0)]
 
         // Then
         #expect(!viewModel.canEdit)
@@ -115,7 +120,10 @@ struct EditBookViewModelTests {
         // Given
         let book = createTestBook(pageCount: 2)
         let viewModel = EditBookViewModel(book: book, editBookUseCase: mockUseCase)
-        viewModel.selectedImages = [createTestImage(), createTestImage()]
+        viewModel.pageList = [
+            PageItem(id: UUID(), uiImage: createTestImage(), position: 0),
+            PageItem(id: UUID(), uiImage: createTestImage(), position: 1)
+        ]
         viewModel.bookTitle = "Updated Title"
         viewModel.bookAuthor = "Updated Author"
 
@@ -150,7 +158,7 @@ struct EditBookViewModelTests {
         let book = createTestBook(pageCount: 2)
         let viewModel = EditBookViewModel(book: book, editBookUseCase: mockUseCase)
         viewModel.bookTitle = ""
-        viewModel.selectedImages = [createTestImage()]
+        viewModel.pageList = [PageItem(id: UUID(), uiImage: createTestImage(), position: 0)]
 
         // When
         await viewModel.editBook()
@@ -166,7 +174,7 @@ struct EditBookViewModelTests {
         // Given
         let book = createTestBook(pageCount: 2)
         let viewModel = EditBookViewModel(book: book, editBookUseCase: mockUseCase)
-        viewModel.selectedImages = [createTestImage()]
+        viewModel.pageList = [PageItem(id: UUID(), uiImage: createTestImage(), position: 0)]
 
         mockUseCase.shouldThrowError = true
 
@@ -235,7 +243,8 @@ struct EditBookViewModelTests {
 
         // When: Adding images rapidly
         for i in 0..<10 {
-            viewModel.selectedImages.append(createTestImage())
+            let pageItem = PageItem(id: UUID(), uiImage: createTestImage(), position: i)
+            viewModel.pageList.append(pageItem)
             // Then: Counts should update correctly
             #expect(viewModel.newPageCount == i + 1)
             #expect(viewModel.totalPageCount == 2 + i + 1)
@@ -247,11 +256,15 @@ struct EditBookViewModelTests {
         // Given
         let book = createTestBook(pageCount: 2)
         let viewModel = EditBookViewModel(book: book, editBookUseCase: mockUseCase)
-        let images = [createTestImage(), createTestImage(), createTestImage()]
-        viewModel.selectedImages = images
+        let pageItems = [
+            PageItem(id: UUID(), uiImage: createTestImage(), position: 0),
+            PageItem(id: UUID(), uiImage: createTestImage(), position: 1),
+            PageItem(id: UUID(), uiImage: createTestImage(), position: 2)
+        ]
+        viewModel.pageList = pageItems
 
         // When: Removing an image
-        viewModel.selectedImages.remove(at: 1)
+        viewModel.pageList.remove(at: 1)
 
         // Then: Counts should update
         #expect(viewModel.newPageCount == 2)
@@ -265,16 +278,21 @@ struct EditBookViewModelTests {
         author: String? = "Test Author",
         pageCount: Int = 3
     ) -> AppBook {
+        let bookId = UUID()
         let pages = (0..<pageCount).map { index in
             AppBookPage(
                 id: UUID(),
-                imageData: Data(),
-                words: [WordSegment(word: "test\(index)", boundingBox: .zero)],
-                pageNumber: index + 1
+                bookId: bookId,
+                pageNumber: index + 1,
+                originalImagePath: "/test/path/image\(index).jpg",
+                extractedText: "Test extracted text for page \(index)",
+                words: [AppWordSegment(word: "test\(index)", startIndex: 0, endIndex: 4)],
+                wordsMarked: []
             )
         }
 
         return AppBook(
+            id: bookId,
             title: title,
             author: author,
             pages: pages,
@@ -299,6 +317,13 @@ struct EditBookViewModelTests {
 private class MockEditBookUseCase: EditBookUseCase {
     var shouldThrowError = false
 
+    // Page reordering properties
+    var reorderPagesCallCount = 0
+    var reorderPagesBookId: UUID?
+    var reorderPagesOrder: [UUID]?
+    var reorderPagesResult: AppBook?
+    var reorderPagesError: Error?
+
     func addPagesToBook(book: AppBook, newImages: [UIImage], updatedTitle: String?, updatedAuthor: String?) async throws -> AppBook {
         if shouldThrowError {
             throw NSError(domain: "TestError", code: 1, userInfo: [NSLocalizedDescriptionKey: "Test error"])
@@ -320,5 +345,139 @@ private class MockEditBookUseCase: EditBookUseCase {
         }
 
         return modifiedBook
+    }
+
+    func reorderPages(book: AppBook, newPageOrder: [UUID]) async throws -> AppBook {
+        reorderPagesCallCount += 1
+        reorderPagesBookId = book.id
+        reorderPagesOrder = newPageOrder
+
+        if let error = reorderPagesError {
+            throw error
+        }
+
+        return reorderPagesResult ?? book
+    }
+}
+
+// MARK: - Page Reordering Tests
+
+extension EditBookViewModelTests {
+
+    @Test("ViewModel initializes with existing pages correctly")
+    func testInitializationWithExistingPages() {
+        // Given
+        let book = createTestBook(title: "Reorder Test Book", pageCount: 3)
+
+        // When
+        let viewModel = EditBookViewModel(book: book, editBookUseCase: mockUseCase)
+
+        // Then
+        #expect(viewModel.existingPageList.count == 3)
+        #expect(viewModel.existingPageList[0].pageNumber == 1)
+        #expect(viewModel.existingPageList[1].pageNumber == 2)
+        #expect(viewModel.existingPageList[2].pageNumber == 3)
+        #expect(viewModel.existingPageList[0].position == 0)
+        #expect(viewModel.existingPageList[1].position == 1)
+        #expect(viewModel.existingPageList[2].position == 2)
+    }
+
+    @Test("reorderExistingPages correctly reorders pages and updates positions")
+    @MainActor
+    func testReorderExistingPages_updatesOrderAndPositions() {
+        // Given
+        let book = createTestBook(title: "Reorder Test Book", pageCount: 4)
+        let viewModel = EditBookViewModel(book: book, editBookUseCase: mockUseCase)
+
+        let originalOrder = viewModel.existingPageList.map { $0.id }
+
+        // When - Move page at index 1 to index 0 (swap first two pages)
+        viewModel.reorderExistingPages(from: IndexSet([1]), to: 0)
+
+        // Then
+        #expect(viewModel.existingPageList.count == 4)
+
+        // Verify the order changed
+        let newOrder = viewModel.existingPageList.map { $0.id }
+        #expect(newOrder != originalOrder)
+
+        // Verify positions are updated
+        for (index, page) in viewModel.existingPageList.enumerated() {
+            #expect(page.position == index)
+        }
+
+        // Verify first page is now what was originally second
+        #expect(viewModel.existingPageList[0].id == originalOrder[1])
+        #expect(viewModel.existingPageList[1].id == originalOrder[0])
+    }
+
+    @Test("savePageReorder successfully saves reordered pages")
+    @MainActor
+    func testSavePageReorder_successfullySavesOrder() async {
+        // Given
+        let book = createTestBook(title: "Save Reorder Test", pageCount: 3)
+        let viewModel = EditBookViewModel(book: book, editBookUseCase: mockUseCase)
+
+        // Reorder pages
+        viewModel.reorderExistingPages(from: IndexSet([2]), to: 0)
+
+        // Set up mock to return reordered book
+        let reorderedPages = viewModel.existingPageList.map { page in
+            AppBookPage(
+                bookId: book.id,
+                pageNumber: page.position + 1,
+                originalImagePath: "/path/to/page\(page.position + 1).jpg",
+                extractedText: "Page \(page.position + 1) content",
+                words: []
+            )
+        }
+        let reorderedBook = AppBook(
+            id: book.id,
+            title: book.title,
+            author: book.author,
+            pages: reorderedPages,
+            currentPageIndex: book.currentPageIndex,
+            isLocal: book.isLocal,
+            language: book.language,
+            genre: book.genre,
+            description: book.description,
+            totalWords: book.totalWords,
+            estimatedReadingTimeMinutes: book.estimatedReadingTimeMinutes,
+            difficulty: book.difficulty,
+            tags: book.tags
+        )
+        mockUseCase.reorderPagesResult = reorderedBook
+
+        // When
+        await viewModel.savePageReorder()
+
+        // Then
+        #expect(viewModel.editComplete == true)
+        #expect(viewModel.isEditing == false)
+
+        // Verify the use case was called with correct order
+        let expectedOrder = viewModel.existingPageList.map { $0.id }
+        #expect(mockUseCase.reorderPagesCallCount == 1)
+        #expect(mockUseCase.reorderPagesBookId == book.id)
+        #expect(mockUseCase.reorderPagesOrder == expectedOrder)
+    }
+
+    @Test("savePageReorder handles errors correctly")
+    func testSavePageReorder_handlesErrors() async {
+        // Given
+        let book = createTestBook(title: "Error Reorder Test", pageCount: 2)
+        let viewModel = EditBookViewModel(book: book, editBookUseCase: mockUseCase)
+
+        // Set up mock to throw error
+        mockUseCase.reorderPagesError = NSError(domain: "TestError", code: 1, userInfo: [NSLocalizedDescriptionKey: "Test error"])
+
+        // When
+        await viewModel.savePageReorder()
+
+        // Then
+        #expect(viewModel.editComplete == false)
+        #expect(viewModel.isEditing == false)
+        #expect(viewModel.showError == true)
+        #expect(viewModel.errorMessage == "Test error")
     }
 }

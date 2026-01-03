@@ -10,11 +10,20 @@ import CoreData
 @testable import umbrella
 
 struct BookRepositoryTests {
-    private let coreDataManager = CoreDataManager(inMemory: true)
+    private var coreDataManager: CoreDataManager!
     private var repository: BookRepositoryImpl!
     private var userId: UUID!
 
     init() {
+        // Create a unique test database URL to avoid conflicts between test runs
+        let tempDir = FileManager.default.temporaryDirectory
+        let testDbURL = tempDir.appendingPathComponent("test-\(UUID().uuidString).sqlite")
+
+        // Clean up any existing test database
+        try? FileManager.default.removeItem(at: testDbURL)
+
+        // Create CoreDataManager with a custom store URL for isolation
+        coreDataManager = CoreDataManager(customStoreURL: testDbURL)
         repository = BookRepositoryImpl(coreDataManager: coreDataManager)
         userId = UUID()
     }
@@ -66,6 +75,34 @@ struct BookRepositoryTests {
         user.updatedAt = Date()
         try context.save()
         return user
+    }
+
+    private func createAndSaveTestBook(title: String = "Test Book", pageCount: Int = 1) async throws -> AppBook {
+        let _ = try await createTestUser()
+
+        let pages = (1...pageCount).map { pageNumber in
+            AppBookPage(
+                bookId: UUID(),
+                pageNumber: pageNumber,
+                originalImagePath: "/path/to/image\(pageNumber).jpg",
+                extractedText: "这是第\(pageNumber)页的内容",
+                words: [
+                    AppWordSegment(word: "第\(pageNumber)页", startIndex: 0, endIndex: 3),
+                    AppWordSegment(word: "内容", startIndex: 4, endIndex: 6)
+                ]
+            )
+        }
+
+        let book = AppBook(
+            title: title,
+            author: "Test Author",
+            pages: pages,
+            language: "zh-Hans",
+            genre: .literature,
+            totalWords: 100 * pageCount
+        )
+
+        return try await repository.saveBook(book, userId: userId)
     }
 
     // MARK: - CRUD Tests
@@ -169,6 +206,94 @@ struct BookRepositoryTests {
         #expect(result.description == "Updated description")
         #expect(result.difficulty == .advanced)
         #expect(result.tags == ["updated"])
+    }
+
+    @MainActor
+    @Test func testUpdateBook_addsMultiplePages() async throws {
+        // Given
+        let _ = try await createTestUser()
+        let originalBook = createTestBook(title: "Original Book", totalWords: 100)
+        let savedBook = try await repository.saveBook(originalBook, userId: userId)
+
+        // Verify original book has expected page count
+        #expect(savedBook.totalPages == 1)
+
+        // Create additional pages to add
+        let page2 = AppBookPage(
+            bookId: savedBook.id,
+            pageNumber: 2,
+            originalImagePath: "/path/to/page2.jpg",
+            extractedText: "This is page 2 content",
+            words: [
+                AppWordSegment(word: "This", startIndex: 0, endIndex: 4),
+                AppWordSegment(word: "is", startIndex: 5, endIndex: 7),
+                AppWordSegment(word: "page", startIndex: 8, endIndex: 12),
+                AppWordSegment(word: "2", startIndex: 13, endIndex: 14)
+            ]
+        )
+
+        let page3 = AppBookPage(
+            bookId: savedBook.id,
+            pageNumber: 3,
+            originalImagePath: "/path/to/page3.jpg",
+            extractedText: "This is page 3 content",
+            words: [
+                AppWordSegment(word: "This", startIndex: 0, endIndex: 4),
+                AppWordSegment(word: "is", startIndex: 5, endIndex: 7),
+                AppWordSegment(word: "page", startIndex: 8, endIndex: 12),
+                AppWordSegment(word: "3", startIndex: 13, endIndex: 14)
+            ]
+        )
+
+        let page4 = AppBookPage(
+            bookId: savedBook.id,
+            pageNumber: 4,
+            originalImagePath: "/path/to/page4.jpg",
+            extractedText: "This is page 4 content",
+            words: [
+                AppWordSegment(word: "This", startIndex: 0, endIndex: 4),
+                AppWordSegment(word: "is", startIndex: 5, endIndex: 7),
+                AppWordSegment(word: "page", startIndex: 8, endIndex: 12),
+                AppWordSegment(word: "4", startIndex: 13, endIndex: 14)
+            ]
+        )
+
+        // Combine original pages with new pages
+        let allPages = savedBook.pages + [page2, page3, page4]
+
+        let updatedBook = AppBook(
+            id: savedBook.id,
+            title: savedBook.title,
+            author: savedBook.author,
+            pages: allPages,
+            currentPageIndex: savedBook.currentPageIndex,
+            isLocal: savedBook.isLocal,
+            language: savedBook.language,
+            genre: savedBook.genre,
+            description: savedBook.description,
+            totalWords: savedBook.totalWords,
+            estimatedReadingTimeMinutes: savedBook.estimatedReadingTimeMinutes,
+            difficulty: savedBook.difficulty,
+            tags: savedBook.tags
+        )
+
+        // When
+        let result = try await repository.updateBook(updatedBook)
+
+        // Then
+        #expect(result.title == "Original Book")
+        #expect(result.totalPages == 4, "Book should now have 4 pages total (1 original + 3 added)")
+        #expect(result.pages.count == 4, "Pages array should contain 4 pages")
+
+        // Verify page ordering by page number
+        let pageNumbers = result.pages.map { $0.pageNumber }
+        #expect(pageNumbers == [1, 2, 3, 4], "Pages should be ordered by page number")
+
+        // Verify specific pages content
+        #expect(result.pages[0].extractedText == "这是第一页的内容", "Original page should be preserved")
+        #expect(result.pages[1].extractedText == "This is page 2 content", "Page 2 should have correct content")
+        #expect(result.pages[2].extractedText == "This is page 3 content", "Page 3 should have correct content")
+        #expect(result.pages[3].extractedText == "This is page 4 content", "Page 4 should have correct content")
     }
 
     @MainActor
@@ -423,5 +548,78 @@ struct BookRepositoryTests {
     @Test func testDeleteBook_nonexistentBook_doesNotThrow() async throws {
         // When/Then - Should not throw for nonexistent book
         try await repository.deleteBook(UUID())
+    }
+
+    // MARK: - Page Reordering Tests
+
+    @Test func testReorderPages_successfullyReordersPages() async throws {
+        // Given
+        let book = try await createAndSaveTestBook(title: "Reorder Test Book", pageCount: 4)
+        let originalPages = book.pages
+
+        // Verify original order: page 1, 2, 3, 4
+        #expect(originalPages[0].pageNumber == 1)
+        #expect(originalPages[1].pageNumber == 2)
+        #expect(originalPages[2].pageNumber == 3)
+        #expect(originalPages[3].pageNumber == 4)
+
+        // New order: page 4, 2, 1, 3 (by ID)
+        let newPageOrder = [
+            originalPages[3].id, // page 4
+            originalPages[1].id, // page 2
+            originalPages[0].id, // page 1
+            originalPages[2].id  // page 3
+        ]
+
+        // When
+        let reorderedBook = try await repository.reorderPages(bookId: book.id, newPageOrder: newPageOrder)
+
+        // Then
+        #expect(reorderedBook.id == book.id)
+        #expect(reorderedBook.title == book.title)
+        #expect(reorderedBook.pages.count == 4)
+
+        // Verify new page order
+        #expect(reorderedBook.pages[0].pageNumber == 1) // was page 4
+        #expect(reorderedBook.pages[1].pageNumber == 2) // was page 2
+        #expect(reorderedBook.pages[2].pageNumber == 3) // was page 1
+        #expect(reorderedBook.pages[3].pageNumber == 4) // was page 3
+
+        // Verify pages are sorted by page number
+        for i in 0..<reorderedBook.pages.count - 1 {
+            #expect(reorderedBook.pages[i].pageNumber <= reorderedBook.pages[i + 1].pageNumber)
+        }
+    }
+
+    @Test func testReorderPages_withNonexistentBook_throwsError() async throws {
+        // Given
+        let nonexistentBookId = UUID()
+        let newPageOrder = [UUID(), UUID(), UUID()]
+
+        // When & Then
+        await #expect(throws: BookRepositoryError.bookNotFound) {
+            try await repository.reorderPages(bookId: nonexistentBookId, newPageOrder: newPageOrder)
+        }
+    }
+
+    @Test func testReorderPages_withMismatchedPageIds_throwsError() async throws {
+        // Given
+        let book = try await createAndSaveTestBook(title: "Mismatch Test Book", pageCount: 3)
+        let wrongPageOrder = [UUID(), UUID(), UUID()] // Different IDs than the book's pages
+
+        // When & Then
+        await #expect(throws: BookRepositoryError.invalidBookData) {
+            try await repository.reorderPages(bookId: book.id, newPageOrder: wrongPageOrder)
+        }
+    }
+
+    @Test func testReorderPages_withEmptyPageOrder_throwsError() async throws {
+        // Given
+        let book = try await createAndSaveTestBook(title: "Empty Order Test Book", pageCount: 2)
+
+        // When & Then
+        await #expect(throws: BookRepositoryError.invalidBookData) {
+            try await repository.reorderPages(bookId: book.id, newPageOrder: [])
+        }
     }
 }

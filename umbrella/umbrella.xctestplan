@@ -1,0 +1,37 @@
+{
+  "configurations" : [
+    {
+      "id" : "D626DF8F-AA08-4132-8FA2-FF06F0D9EA50",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "performanceAntipatternCheckerEnabled" : true,
+    "targetForVariableExpansion" : {
+      "containerPath" : "container:umbrella.xcodeproj",
+      "identifier" : "C0D890312F056F6400699163",
+      "name" : "umbrella"
+    }
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : false,
+      "target" : {
+        "containerPath" : "container:umbrella.xcodeproj",
+        "identifier" : "C0D890432F056F6500699163",
+        "name" : "umbrellaTests"
+      }
+    },
+    {
+      "target" : {
+        "containerPath" : "container:umbrella.xcodeproj",
+        "identifier" : "C0D8904D2F056F6500699163",
+        "name" : "umbrellaUITests"
+      }
+    }
+  ],
+  "version" : 1
+}

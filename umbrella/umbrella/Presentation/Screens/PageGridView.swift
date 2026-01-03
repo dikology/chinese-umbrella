@@ -12,19 +12,39 @@ struct PageGridView: View {
     @State private var editingPage: PageItem?
     @State private var isEditing = false
 
+    // Optional existing pages for editing existing books
+    var existingPages: [ExistingPageItem]? = nil
+    var onReorderExistingPages: ((IndexSet, Int) -> Void)? = nil
+
     let columns = [
         GridItem(.adaptive(minimum: 100), spacing: 12)
     ]
 
+    private var displayTitle: String {
+        if let existingPages = existingPages {
+            return "Existing Pages (\(existingPages.count))"
+        } else {
+            return "Pages (\(pages.count))"
+        }
+    }
+
+    private var hasPages: Bool {
+        if let existingPages = existingPages {
+            return !existingPages.isEmpty
+        } else {
+            return !pages.isEmpty
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Text("Pages (\(pages.count))")
+                Text(displayTitle)
                     .font(.headline)
 
                 Spacer()
 
-                if !pages.isEmpty {
+                if hasPages {
                     Menu {
                         Button("Renumber from 1", action: renumberPages)
                         Button("Sort by number", action: sortByNumber)
@@ -36,7 +56,7 @@ struct PageGridView: View {
             }
             .padding(.horizontal)
 
-            if pages.isEmpty {
+            if !hasPages {
                 ContentUnavailableView(
                     "No Pages Yet",
                     systemImage: "photo.stack",
@@ -44,21 +64,35 @@ struct PageGridView: View {
                 )
                 .frame(height: 200)
             } else {
-                LazyVGrid(columns: columns, spacing: 12) {
-                    ForEach(Array(pages.enumerated()), id: \.element.id) { index, page in
-                        PageThumbnailCard(
-                            page: page,
-                            onEdit: { editingPage = page },
-                            onDelete: { pages.remove(at: index) }
-                        )
+                ScrollView {
+                    LazyVGrid(columns: columns, spacing: 12) {
+                        // Show existing pages if available
+                        if let existingPages = existingPages {
+                            ForEach(Array(existingPages.enumerated()), id: \.element.id) { index, page in
+                                ExistingPageThumbnailCard(
+                                    page: page,
+                                    isEditing: isEditing
+                                )
+                            }
+                            .onMove(perform: onReorderExistingPages)
+                        } else {
+                            // Show new pages
+                            ForEach(Array(pages.enumerated()), id: \.element.id) { index, page in
+                                PageThumbnailCard(
+                                    page: page,
+                                    onEdit: { editingPage = page },
+                                    onDelete: { pages.remove(at: index) }
+                                )
+                            }
+                        }
                     }
+                    .padding(.horizontal)
+                    .environment(\.editMode, isEditing ? .constant(.active) : .constant(.inactive))
                 }
-                .padding(.horizontal)
-                .environment(\.editMode, isEditing ? .constant(.active) : .constant(.inactive))
 
                 // Reorder mode toggle
-                if !pages.isEmpty {
-                    Button(isEditing ? "Done" : "Edit") {
+                if hasPages {
+                    Button(isEditing ? "Done" : "Reorder") {
                         isEditing.toggle()
                     }
                     .frame(maxWidth: .infinity)
@@ -129,6 +163,47 @@ struct PageThumbnailCard: View {
         .onTapGesture {
             if !isInEditMode {
                 onEdit()
+            }
+        }
+    }
+}
+
+// MARK: - Existing Page Thumbnail Card
+struct ExistingPageThumbnailCard: View {
+    let page: ExistingPageItem
+    let isEditing: Bool
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            // Thumbnail placeholder (we don't have actual thumbnails for existing pages yet)
+            ZStack {
+                RoundedRectangle(cornerRadius: 8)
+                    .fill(Color.gray.opacity(0.2))
+                    .frame(height: 160)
+
+                VStack(spacing: 8) {
+                    Image(systemName: "doc.text")
+                        .font(.system(size: 32))
+                        .foregroundColor(.gray)
+
+                    Text("Page \(page.pageNumber)")
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                }
+            }
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color.blue.opacity(0.3), lineWidth: 1)
+            )
+
+            // Reorder handle (shown in edit mode)
+            if isEditing {
+                Image(systemName: "line.horizontal.3")
+                    .foregroundColor(.blue)
+                    .padding(4)
+                    .background(Color.white.opacity(0.8))
+                    .clipShape(Circle())
+                    .padding(8)
             }
         }
     }
