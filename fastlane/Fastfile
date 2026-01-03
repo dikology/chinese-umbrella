@@ -62,7 +62,7 @@ platform :ios do
       type: match_type,
       app_identifier: "com.dikology.umbrella",
       git_url: ENV["MATCH_GIT_URL"],
-      git_branch: ENV["MATCH_GIT_BRANCH"] || "main",
+      git_branch: ENV["MATCH_GIT_BRANCH"] || "master",
       readonly: ENV["CI"] == "true",
       # Explicitly override Matchfile defaults
       force: false,
@@ -212,7 +212,7 @@ platform :ios do
     test
 
     # Only deploy to TestFlight if on main branch and label is present
-    if git_branch == "main" && ENV["DEPLOY_TO_TESTFLIGHT"] == "true"
+    if git_branch == "master" && ENV["DEPLOY_TO_TESTFLIGHT"] == "true"
       beta
     else
       UI.message("Skipping TestFlight deployment. Set DEPLOY_TO_TESTFLIGHT=true to deploy.")
