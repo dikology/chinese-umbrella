@@ -12,7 +12,7 @@ import CoreData
 class BookRepositoryImpl: BookRepository {
     private let coreDataManager: CoreDataManager
 
-    init(coreDataManager: CoreDataManager = .shared) {
+    init(coreDataManager: CoreDataManager) {
         self.coreDataManager = coreDataManager
     }
 

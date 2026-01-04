@@ -12,6 +12,7 @@ import AuthenticationServices
 struct LibraryScreen: View {
     @Environment(\.colorScheme) private var colorScheme
     let viewModel: LibraryViewModel
+    let diContainer: DIContainer
     @State private var showUploadSheet = false
     @State private var showEditSheet = false
     @State private var bookToEdit: AppBook?
@@ -22,8 +23,9 @@ struct LibraryScreen: View {
         AdaptiveColors(colorScheme: colorScheme)
     }
 
-    init(viewModel: LibraryViewModel) {
+    init(viewModel: LibraryViewModel, diContainer: DIContainer) {
         self.viewModel = viewModel
+        self.diContainer = diContainer
     }
 
     // MARK: - Header Section
@@ -151,7 +153,7 @@ struct LibraryScreen: View {
         Group {
             if let userId = viewModel.currentUserId {
                 BookUploadScreen(
-                    bookUploadUseCase: DIContainer.bookUploadUseCase,
+                    bookUploadUseCase: diContainer.bookUploadUseCase,
                     userId: userId,
                     onBookUploaded: {
                         Task {
@@ -170,7 +172,7 @@ struct LibraryScreen: View {
             if let book = bookToEdit {
                 EditBookScreen(
                     book: book,
-                    editBookUseCase: DIContainer.editBookUseCase,
+                    editBookUseCase: diContainer.editBookUseCase,
                     onBookEdited: {
                         LoggingService.shared.debug("LibraryScreen: onBookEdited callback triggered")
                         Task {
@@ -241,8 +243,8 @@ struct LibraryScreen: View {
                 }
             }
             .navigationDestination(item: $selectedBook) { book in
-                ReadingScreen(book: book, userId: viewModel.currentUserId ?? UUID())
-                    .environment(\.managedObjectContext, DIContainer.coreDataManager.viewContext)
+                ReadingScreen(book: book, userId: viewModel.currentUserId ?? UUID(), diContainer: diContainer)
+                    .environment(\.managedObjectContext, diContainer.coreDataManager.viewContext)
             }
         }
     }
@@ -380,6 +382,7 @@ struct EmptyLibraryView: View {
 }
 
 #Preview {
-    LibraryScreen(viewModel: LibraryViewModel.preview)
+    LibraryScreen(viewModel: LibraryViewModel.preview, diContainer: DIContainer.preview)
+        .environment(\.managedObjectContext, DIContainer.preview.coreDataManager.viewContext)
 }
 

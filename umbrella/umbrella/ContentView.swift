@@ -10,20 +10,28 @@ import SwiftUI
 struct ContentView: View {
     @Environment(\.managedObjectContext) private var viewContext
     let currentUser: AppUser
+    let diContainer: DIContainer
 
-    init(currentUser: AppUser) {
+    init(currentUser: AppUser, diContainer: DIContainer) {
         self.currentUser = currentUser
+        self.diContainer = diContainer
     }
 
     var body: some View {
-        LibraryScreen(viewModel: LibraryViewModel(
-            bookRepository: DIContainer.bookRepository,
-            userId: currentUser.id
-        ))
+        LibraryScreen(
+            viewModel: LibraryViewModel(
+                bookRepository: diContainer.bookRepository,
+                userId: currentUser.id
+            ),
+            diContainer: diContainer
+        )
     }
 }
 
 #Preview {
-    ContentView(currentUser: AppUser(id: UUID(), email: "test@test.com", displayName: "Test User"))
-        .environment(\.managedObjectContext, DIContainer.coreDataManager.viewContext)
+    ContentView(
+        currentUser: AppUser(id: UUID(), email: "test@test.com", displayName: "Test User"),
+        diContainer: DIContainer.preview
+    )
+        .environment(\.managedObjectContext, DIContainer.preview.coreDataManager.viewContext)
 }

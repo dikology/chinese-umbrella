@@ -13,13 +13,18 @@ import CoreData
 final class AppInitializationState {
     var currentUser: AppUser?
     var isInitializing = true
+    private let diContainer: DIContainer
+
+    init(diContainer: DIContainer) {
+        self.diContainer = diContainer
+    }
 
     @MainActor
     func initializeApp() async {
         // Preload dictionary in background
         Task {
             do {
-                try DIContainer.dictionaryService.preloadDictionary()
+                try diContainer.dictionaryService.preloadDictionary()
                 print("Dictionary preloaded successfully")
             } catch {
                 print("Failed to preload dictionary: \(error)")
@@ -28,7 +33,7 @@ final class AppInitializationState {
 
         // Get or create anonymous user
         do {
-            let anonymousService = DIContainer.anonymousUserService
+            let anonymousService = diContainer.anonymousUserService
             currentUser = try await anonymousService.getOrCreateAnonymousUser()
             isInitializing = false
         } catch {
@@ -45,10 +50,13 @@ final class AppInitializationState {
 
 @main
 struct umbrellaApp: App {
-    @State private var appState = AppInitializationState()
-    let coreDataManager = CoreDataManager.shared
+    @State private var appState: AppInitializationState
+    let diContainer = DIContainer()
 
     init() {
+        let container = diContainer
+        _appState = State(initialValue: AppInitializationState(diContainer: container))
+
         // Initialize app state asynchronously
         let state = appState
         Task {
@@ -63,8 +71,8 @@ struct umbrellaApp: App {
                 LoadingView()
             } else if let user = appState.currentUser {
                 // Go directly to main app
-                ContentView(currentUser: user)
-                    .environment(\.managedObjectContext, coreDataManager.viewContext)
+                ContentView(currentUser: user, diContainer: diContainer)
+                    .environment(\.managedObjectContext, diContainer.coreDataManager.viewContext)
             }
         }
     }

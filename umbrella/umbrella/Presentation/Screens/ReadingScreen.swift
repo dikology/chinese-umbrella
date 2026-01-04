@@ -20,9 +20,9 @@ struct ReadingScreen: View {
         AdaptiveColors(colorScheme: colorScheme)
     }
 
-    init(book: AppBook, userId: UUID) {
+    init(book: AppBook, userId: UUID, diContainer: DIContainer) {
         self.book = book
-        self.viewModel = DIContainer.makeReadingViewModel(userId: userId)
+        self.viewModel = diContainer.makeReadingViewModel(userId: userId)
         self.userId = userId
     }
 
@@ -41,10 +41,6 @@ struct ReadingScreen: View {
                                 ProgressView("Loading page...")
                                     .padding()
                             } else if let page = viewModel.currentPage {
-                                // Page title
-                                Text("Page \(page.pageNumber)")
-                                    .captionStyle()
-                                    .padding(.bottom, 8)
 
                                 // Segmented text content
                                 segmentedTextView(for: page)
@@ -89,11 +85,6 @@ struct ReadingScreen: View {
             }
             .navigationTitle(book.title)
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-//                ToolbarItem(placement: .navigationBarTrailing) {
-//                    progressIndicator
-//                }
-            }
         }
         .task {
             await viewModel.loadBook(book)
@@ -124,11 +115,8 @@ struct ReadingScreen: View {
             Spacer()
 
             VStack(spacing: 2) {
-                Text("\(viewModel.currentPageIndex + 1) of \(viewModel.totalPages)")
+                Text("Page \(viewModel.currentPageIndex + 1) of \(viewModel.totalPages)")
                     .captionStyle()
-                Text("Page \(viewModel.currentPageNumber)")
-                    .bodySecondaryStyle()
-                    .fontWeight(.medium)
             }
 
             Spacer()
@@ -144,19 +132,6 @@ struct ReadingScreen: View {
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
         .background(colors.surface.opacity(0.9))
-    }
-
-    private var progressIndicator: some View {
-        VStack(spacing: 2) {
-            ProgressView(value: viewModel.readingProgress)
-                .progressViewStyle(.linear)
-                .frame(width: 60)
-                .tint(colors.primary)
-                .background(colors.progressTrack)
-                .cornerRadius(2)
-            Text("\(Int(viewModel.readingProgress * 100))%")
-                .captionSmallStyle()
-        }
     }
 
     private func segmentedTextView(for page: AppBookPage) -> some View {
@@ -331,59 +306,6 @@ extension ReadingViewModel {
     }
 }
 
-struct FlowingTextLayoutPreview: View {
-    let sampleWords = ["你好", "世界", "学习", "中文", "这是", "一个", "测试", "句子", "。"]
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            Text("Before (Grid Layout - looks like columns):")
-                .font(.headline)
-
-            GridLayoutExample(words: sampleWords)
-
-            Text("After (Flowing Text Layout - natural reading flow):")
-                .font(.headline)
-
-            FlowingLayoutExample(words: sampleWords)
-        }
-        .padding()
-    }
-}
-
-struct GridLayoutExample: View {
-    let words: [String]
-
-    var body: some View {
-        LazyVGrid(columns: [GridItem(.adaptive(minimum: 28), spacing: 1)], spacing: 12) {
-            ForEach(words, id: \.self) { word in
-                Text(word)
-                    .padding(.horizontal, 3)
-                    .padding(.vertical, 4)
-                    .background(Color.blue.opacity(0.1))
-                    .cornerRadius(4)
-            }
-        }
-        .frame(height: 120)
-    }
-}
-
-struct FlowingLayoutExample: View {
-    let words: [String]
-
-    var body: some View {
-        FlowingTextLayout {
-            ForEach(words, id: \.self) { word in
-                Text(word)
-                    .padding(.horizontal, 3)
-                    .padding(.vertical, 4)
-                    .background(Color.green.opacity(0.1))
-                    .cornerRadius(4)
-            }
-        }
-        .frame(height: 60)
-    }
-}
-
 #Preview {
     // Create a mock book for preview
     let mockPage = AppBookPage(
@@ -399,10 +321,6 @@ struct FlowingLayoutExample: View {
         pages: [mockPage]
     )
 
-    ReadingScreen(book: mockBook, userId: UUID())
-        .environment(\.managedObjectContext, DIContainer.coreDataManager.viewContext)
-}
-
-#Preview("Flowing Text Layout") {
-    FlowingTextLayoutPreview()
+    ReadingScreen(book: mockBook, userId: UUID(), diContainer: DIContainer.preview)
+        .environment(\.managedObjectContext, DIContainer.preview.coreDataManager.viewContext)
 }
