@@ -22,8 +22,8 @@ platform :ios do
     scan(
       project: "umbrella/umbrella.xcodeproj",
       scheme: "umbrella",
-      # Let Fastlane auto-detect available simulators
-      # This is more reliable across different environments
+      # Specify destination to match CI environment
+      destination: "platform=iOS Simulator,name=iPhone 16 Pro,OS=18.4",
       ensure_devices_found: true,
       code_coverage: false,
       clean: true,

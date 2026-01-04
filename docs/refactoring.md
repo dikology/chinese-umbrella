@@ -475,7 +475,7 @@ func segmentChineseText(_ text: String) async -> [AppWordSegment] {
 
 ---
 
-#### Issue: Heavy Init in EditBookViewModel
+#### Issue: Heavy Init in EditBookViewModel -- 04.01.2026
 **Current:**
 ```swift
 init(book: AppBook, ...) {

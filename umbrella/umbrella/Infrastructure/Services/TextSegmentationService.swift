@@ -58,7 +58,7 @@ class LocalTextSegmentationService: TextSegmentationService {
 
         // For Chinese text, use character-based segmentation for language learning
         if containsChineseCharacters(text) {
-            return segmentChineseText(text)
+            return await segmentChineseText(text)
         }
 
         let tokenizer = NLTokenizer(unit: .word)
@@ -150,11 +150,19 @@ class LocalTextSegmentationService: TextSegmentationService {
 
     /// Segment Chinese text using dictionary-based longest-match algorithm
     /// Tries to match multi-character words from CEDICT before falling back to single characters
-    private func segmentChineseText(_ text: String) -> [AppWordSegment] {
+    private func segmentChineseText(_ text: String) async -> [AppWordSegment] {
         var segments: [AppWordSegment] = []
         var currentIndex = 0
 
         while currentIndex < text.count {
+            // Allow cancellation
+            if Task.isCancelled { break }
+
+            // Periodically yield to other tasks
+            if currentIndex % 100 == 0 {
+                await Task.yield()
+            }
+
             let remainingText = String(text[text.index(text.startIndex, offsetBy: currentIndex)...])
 
             // Skip whitespace
@@ -178,7 +186,7 @@ class LocalTextSegmentationService: TextSegmentationService {
             }
 
             // Try to find the longest matching word from dictionary
-            let matchedWord = findLongestDictionaryMatch(in: remainingText)
+            let matchedWord = self.findLongestDictionaryMatch(in: remainingText)
             let wordLength = matchedWord.count
 
             segments.append(AppWordSegment(
