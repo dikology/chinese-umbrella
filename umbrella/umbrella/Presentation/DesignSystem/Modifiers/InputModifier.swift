@@ -19,13 +19,13 @@ struct TextFieldModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .padding(12)
+            .padding(.spacingM)
             .background(colors.surface)
             .foregroundColor(colors.textPrimary)
             .font(.body)
-            .cornerRadius(8)
+            .cornerRadius(.radiusM)
             .overlay(
-                RoundedRectangle(cornerRadius: 8)
+                RoundedRectangle(cornerRadius: .radiusM)
                     .stroke(colors.divider, lineWidth: 1)
             )
     }
@@ -41,11 +41,11 @@ struct SearchFieldModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .padding(12)
+            .padding(.spacingM)
             .background(colors.searchBackground)
             .foregroundColor(colors.textPrimary)
             .font(.body)
-            .cornerRadius(8)
+            .cornerRadius(.radiusM)
     }
 }
 

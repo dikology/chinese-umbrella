@@ -18,7 +18,7 @@ struct CardModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .background(colors.surface)
-            .cornerRadius(12)
+            .cornerRadius(.radiusL)
             .shadow(color: colors.shadow, radius: 2, x: 0, y: 1)
     }
 }
@@ -34,7 +34,7 @@ struct ElevatedCardModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .background(colors.surface)
-            .cornerRadius(12)
+            .cornerRadius(.radiusL)
             .shadow(color: colors.shadow, radius: 4, x: 0, y: 2)
     }
 }

@@ -25,7 +25,7 @@ struct LoadingOverlay: View {
                 .ignoresSafeArea()
 
             // Loading content container
-            VStack(spacing: 12) {
+            VStack(spacing: .spacingM) {
                 ProgressView()
                     .scaleEffect(1.2)
                     .tint(colors.primary)
@@ -33,9 +33,9 @@ struct LoadingOverlay: View {
                 Text(message)
                     .captionStyle()
             }
-            .padding(24)
+            .padding(.spacingXL)
             .background(colors.surface)
-            .cornerRadius(12)
+            .cornerRadius(.radiusL)
             .shadow(color: colors.shadow, radius: 8, x: 0, y: 4)
         }
         .ignoresSafeArea()
