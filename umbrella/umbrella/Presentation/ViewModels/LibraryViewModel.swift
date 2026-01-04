@@ -138,15 +138,8 @@ final class LibraryViewModel {
             filteredBooks = books
         case .local:
             filteredBooks = books.filter { $0.isLocal }
-        case .publicLibrary:
+        case .groupLibrary:
             filteredBooks = books.filter { !$0.isLocal }
-        case .recent:
-            // Get books read in the last 7 days
-            let sevenDaysAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date())!
-            filteredBooks = books.filter { $0.updatedDate > sevenDaysAgo }
-                .sorted { $0.updatedDate > $1.updatedDate }
-        case .completed:
-            filteredBooks = books.filter { $0.isCompleted }
         }
     }
 
@@ -174,12 +167,8 @@ final class LibraryViewModel {
                 return "No books yet. Upload your first book to get started!"
             case .local:
                 return "No uploaded books yet. Use the camera or photo library to add books."
-            case .publicLibrary:
-                return "No public library books available yet."
-            case .recent:
-                return "No recently read books."
-            case .completed:
-                return "No completed books yet."
+            case .groupLibrary:
+                return "No group library books available yet."
             }
         }
     }
@@ -210,17 +199,13 @@ final class LibraryViewModel {
 enum BookFilter: String, CaseIterable {
     case all = "All Books"
     case local = "My Books"
-    case publicLibrary = "Public Library"
-    case recent = "Recent"
-    case completed = "Completed"
+    case groupLibrary = "Group Library"
 
     var icon: String {
         switch self {
         case .all: return "books.vertical"
         case .local: return "camera"
-        case .publicLibrary: return "globe"
-        case .recent: return "clock"
-        case .completed: return "checkmark.circle"
+        case .groupLibrary: return "globe"
         }
     }
 }

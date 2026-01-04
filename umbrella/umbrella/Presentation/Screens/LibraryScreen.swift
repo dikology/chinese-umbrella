@@ -31,7 +31,7 @@ struct LibraryScreen: View {
         VStack(spacing: 16) {
             // Title and upload button
             HStack {
-                Text("My Library")
+                Text("Library")
                     .titleStyle()
 
                 Spacer()
@@ -45,34 +45,34 @@ struct LibraryScreen: View {
                 }
             }
 
-            // Search bar
-            HStack {
-                Image(systemName: "magnifyingglass")
-                    .foregroundColor(colors.textSecondary)
-
-                TextField("Search books...", text: $searchText)
-                    .adaptiveTextFieldStyle()
-                    .onChange(of: searchText) { oldValue, newValue in
-                        Task {
-                            await viewModel.searchBooks(query: newValue)
-                        }
-                    }
-
-                if !searchText.isEmpty {
-                    Button {
-                        searchText = ""
-                        Task {
-                            await viewModel.searchBooks(query: "")
-                        }
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundColor(colors.textSecondary)
-                    }
-                }
-            }
-            .padding(12)
-            .background(colors.searchBackground)
-            .cornerRadius(8)
+            // Search bar (Phase 3+)
+//            HStack {
+//                Image(systemName: "magnifyingglass")
+//                    .foregroundColor(colors.textSecondary)
+//
+//                TextField("Search books...", text: $searchText)
+//                    .adaptiveTextFieldStyle()
+//                    .onChange(of: searchText) { oldValue, newValue in
+//                        Task {
+//                            await viewModel.searchBooks(query: newValue)
+//                        }
+//                    }
+//
+//                if !searchText.isEmpty {
+//                    Button {
+//                        searchText = ""
+//                        Task {
+//                            await viewModel.searchBooks(query: "")
+//                        }
+//                    } label: {
+//                        Image(systemName: "xmark.circle.fill")
+//                            .foregroundColor(colors.textSecondary)
+//                    }
+//                }
+//            }
+//            .padding(12)
+//            .background(colors.searchBackground)
+//            .cornerRadius(8)
 
             // Filter pills
             ScrollView(.horizontal, showsIndicators: false) {
@@ -119,7 +119,12 @@ struct LibraryScreen: View {
                     .listRowInsets(EdgeInsets())
                     .listRowSeparator(.hidden)
                     .listRowBackground(Color.clear)
-                    .swipeActions(edge: .leading) {
+                    .swipeActions(edge: .trailing) {
+                        Button(role: .destructive, action: {
+                            viewModel.showDeleteConfirmation(for: book)
+                        }) {
+                            Label("Delete", systemImage: "trash")
+                        }
                         Button(action: {
                             LoggingService.shared.debug("LibraryScreen: Setting bookToEdit to book with title: \(book.title), pages: \(book.totalPages)")
                             bookToEdit = book
@@ -128,13 +133,6 @@ struct LibraryScreen: View {
                             Label("Edit", systemImage: "pencil")
                         }
                         .tint(colors.primary)
-                    }
-                    .swipeActions(edge: .trailing) {
-                        Button(role: .destructive, action: {
-                            viewModel.showDeleteConfirmation(for: book)
-                        }) {
-                            Label("Delete", systemImage: "trash")
-                        }
                     }
                 }
                 .listStyle(.plain)
@@ -295,15 +293,15 @@ struct BookListRow: View {
             CardContainer {
                 HStack(spacing: 16) {
                     // Book cover placeholder
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(colors.filterInactive)
-                            .frame(width: 60, height: 80)
-
-                        Image(systemName: book.isLocal ? "camera" : "globe")
-                            .font(.title2)
-                            .foregroundColor(colors.textSecondary)
-                    }
+//                    ZStack {
+//                        RoundedRectangle(cornerRadius: 8)
+//                            .fill(colors.filterInactive)
+//                            .frame(width: 60, height: 80)
+//
+//                        Image(systemName: book.isLocal ? "camera" : "globe")
+//                            .font(.title2)
+//                            .foregroundColor(colors.textSecondary)
+//                    }
 
                     // Book info
                     VStack(alignment: .leading, spacing: 4) {
