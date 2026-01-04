@@ -67,7 +67,7 @@ class DefaultBookUploadUseCase: BookUploadUseCase {
         }
 
         if validImages.count < images.count {
-            print("Warning: \(images.count - validImages.count) images were filtered out due to validation failures")
+            LoggingService.shared.ocr("Warning: \(images.count - validImages.count) images were filtered out due to validation failures", level: .default)
         }
 
         // Process images with OCR
@@ -76,9 +76,9 @@ class DefaultBookUploadUseCase: BookUploadUseCase {
             do {
                 let processedImage = try await processImage(image)
                 processedImages.append(processedImage)
-                print("Processed page \(index + 1)/\(validImages.count)")
+                LoggingService.shared.ocr("Processed page \(index + 1)/\(validImages.count)", level: .info)
             } catch {
-                print("Failed to process page \(index + 1): \(error)")
+                LoggingService.shared.ocr("Failed to process page \(index + 1)", level: .error)
                 throw BookUploadError.ocrFailed(page: index + 1, error: error)
             }
         }

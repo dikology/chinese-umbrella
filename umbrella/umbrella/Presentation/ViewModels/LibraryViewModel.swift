@@ -26,6 +26,7 @@ enum LibraryViewState {
 final class LibraryViewModel {
     private let bookRepository: BookRepository
     private let userId: UUID
+    private let logger: Logger
 
     // Data
     var selectedBook: AppBook?
@@ -45,32 +46,33 @@ final class LibraryViewModel {
         userId
     }
 
-    init(bookRepository: BookRepository, userId: UUID) {
+    init(bookRepository: BookRepository, userId: UUID, logger: Logger = LoggingService.shared) {
         self.bookRepository = bookRepository
         self.userId = userId
+        self.logger = logger
     }
 
     // MARK: - Data Loading
 
     @MainActor
     func loadBooks() async {
-        LoggingService.shared.debug("LibraryViewModel: loadBooks called")
+        logger.debug("LibraryViewModel: loadBooks called")
         viewState = .loading
 
         do {
             let loadedBooks = try await bookRepository.getBooks(for: userId)
-            LoggingService.shared.debug("LibraryViewModel: Loaded \(loadedBooks.count) books")
+            logger.debug("LibraryViewModel: Loaded \(loadedBooks.count) books")
             for (index, book) in loadedBooks.enumerated() {
-                LoggingService.shared.debug("LibraryViewModel: Book \(index): '\(book.title)' has \(book.totalPages) pages")
+                logger.debug("LibraryViewModel: Book \(index): '\(book.title)' has \(book.totalPages) pages")
             }
             let filteredBooks = applyFiltering(to: loadedBooks, filter: selectedFilter)
             viewState = .loaded(filteredBooks)
-            LoggingService.shared.debug("LibraryViewModel: Books loaded and filtered, displayBooks count: \(displayBooks.count)")
+            logger.debug("LibraryViewModel: Books loaded and filtered, displayBooks count: \(displayBooks.count)")
             for (index, book) in displayBooks.enumerated() {
-                LoggingService.shared.debug("LibraryViewModel: Display book \(index): '\(book.title)' has \(book.totalPages) pages")
+                logger.debug("LibraryViewModel: Display book \(index): '\(book.title)' has \(book.totalPages) pages")
             }
         } catch {
-            LoggingService.shared.error("LibraryViewModel: Failed to load books: \(error)")
+            logger.error("LibraryViewModel: Failed to load books", error: error)
             viewState = .error("Could not load your book library. Please check your connection and try again.")
             errorAlert = ErrorAlert(
                 title: "Failed to Load Books",
@@ -94,7 +96,7 @@ final class LibraryViewModel {
                 viewState = .loaded(filteredBooks)
             }
         } catch {
-            LoggingService.shared.error("LibraryViewModel: Failed to delete book: \(error)")
+            logger.error("LibraryViewModel: Failed to delete book", error: error)
             errorAlert = ErrorAlert(
                 title: "Delete Failed",
                 message: "Could not delete '\(book.title)'. Please try again."

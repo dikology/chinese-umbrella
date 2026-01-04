@@ -130,8 +130,8 @@ class CoreDataManager {
             try context.save()
         } catch {
             let nsError = error as NSError
-            print("Core Data save error: \(nsError.localizedDescription)")
-            print("Error details: \(nsError.userInfo)")
+            LoggingService.shared.coreData("Core Data save error: \(nsError.localizedDescription)", level: .error)
+            LoggingService.shared.coreData("Error details: \(nsError.userInfo)", level: .error)
 
             // In a production app, implement proper error recovery
             // For now, we re-throw to let the caller handle it
@@ -147,7 +147,7 @@ class CoreDataManager {
             do {
                 try contextToUse.save()
             } catch {
-                print("Async Core Data save error: \(error.localizedDescription)")
+                LoggingService.shared.coreData("Async Core Data save error: \(error.localizedDescription)", level: .error)
                 throw error
             }
         }

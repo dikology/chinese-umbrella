@@ -130,7 +130,7 @@ class AuthRepositoryImpl: AuthRepository {
             } catch {
                 // Handle case where existing data doesn't match current class structure
                 // This can happen during development when schema changes
-                print("Warning: Could not fetch user entities: \(error)")
+                LoggingService.shared.auth("Could not fetch user entities", level: .error)
                 return nil
             }
         }

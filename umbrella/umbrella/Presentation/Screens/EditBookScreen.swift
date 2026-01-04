@@ -30,7 +30,8 @@ struct EditBookScreen: View {
         _viewModel = State(initialValue: EditBookViewModel(
             book: book,
             editBookUseCase: editBookUseCase,
-            onBookEdited: onBookEdited
+            onBookEdited: onBookEdited,
+            logger: LoggingService.shared
         ))
         LoggingService.shared.debug("EditBookViewModel created with existingPageCount: \(_viewModel.wrappedValue.existingPageCount)")
     }
@@ -280,7 +281,7 @@ struct EditBookScreen: View {
         book: mockBook,
         editBookUseCase: MockEditBookUseCase(),
         onBookEdited: {
-            print("Book edited callback triggered")
+            LoggingService.shared.debug("Book edited callback triggered")
         }
     )
 }

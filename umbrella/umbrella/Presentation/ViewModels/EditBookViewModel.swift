@@ -32,6 +32,7 @@ struct ExistingPageItem: Identifiable, Equatable {
 final class EditBookViewModel {
     private let editBookUseCase: EditBookUseCase
     private let onBookEdited: (() -> Void)?
+    private let logger: Logger
 
     // Book being edited
     let existingBook: AppBook
@@ -76,9 +77,10 @@ final class EditBookViewModel {
     init(
         book: AppBook,
         editBookUseCase: EditBookUseCase,
-        onBookEdited: (() -> Void)? = nil
+        onBookEdited: (() -> Void)? = nil,
+        logger: Logger = LoggingService.shared
     ) {
-        LoggingService.shared.debug("EditBookViewModel init: book.title=\(book.title), book.totalPages=\(book.totalPages), book.author=\(book.author ?? "nil")")
+        self.logger = logger
         self.existingBook = book
         self.editBookUseCase = editBookUseCase
         self.onBookEdited = onBookEdited
@@ -87,7 +89,8 @@ final class EditBookViewModel {
         self.bookTitle = book.title
         self.bookAuthor = book.author ?? ""
 
-        LoggingService.shared.debug("EditBookViewModel init complete: bookTitle=\(bookTitle), bookAuthor=\(bookAuthor), existingPageCount=\(existingPageCount)")
+        logger.debug("EditBookViewModel init: book.title=\(book.title), book.totalPages=\(book.totalPages), book.author=\(book.author ?? "nil")")
+        logger.debug("EditBookViewModel init complete: bookTitle=\(bookTitle), bookAuthor=\(bookAuthor), existingPageCount=\(existingPageCount)")
     }
 
     @MainActor
@@ -96,7 +99,7 @@ final class EditBookViewModel {
 
         isLoadingExistingPages = true
 
-        LoggingService.shared.debug("EditBookViewModel: Loading existing pages for book '\(existingBook.title)' with \(existingBook.totalPages) pages")
+        logger.debug("EditBookViewModel: Loading existing pages for book '\(existingBook.title)' with \(existingBook.totalPages) pages")
 
         let pages = await Task.detached {
             self.existingBook.pages.enumerated().map { index, page in
@@ -112,7 +115,7 @@ final class EditBookViewModel {
 
         self.existingPageList = pages
 
-        LoggingService.shared.debug("EditBookViewModel: Successfully loaded \(pages.count) existing pages")
+        logger.debug("EditBookViewModel: Successfully loaded \(pages.count) existing pages")
 
         isLoadingExistingPages = false
     }
@@ -132,11 +135,11 @@ final class EditBookViewModel {
         isEditing = true
 
         do {
-            LoggingService.shared.info("EditBookViewModel: Starting edit with \(pageList.count) pages to add to book '\(existingBook.title)'")
+            logger.info("EditBookViewModel: Starting edit with \(pageList.count) pages to add to book '\(existingBook.title)'")
 
             // Extract UIImages from PageItems for upload
             let images = pageList.map { $0.uiImage }
-            LoggingService.shared.debug("EditBookViewModel: Extracted \(images.count) images from pageList")
+            logger.debug("EditBookViewModel: Extracted \(images.count) images from pageList")
 
             // Add new pages with updated metadata
             let editedBook = try await editBookUseCase.addPagesToBook(
@@ -146,7 +149,7 @@ final class EditBookViewModel {
                 updatedAuthor: bookAuthor.isEmpty ? nil : bookAuthor
             )
 
-            LoggingService.shared.info("EditBookViewModel: Successfully edited book: \(editedBook.title) (added \(pageList.count) pages, final total: \(editedBook.totalPages))")
+            logger.info("EditBookViewModel: Successfully edited book: \(editedBook.title) (added \(pageList.count) pages, final total: \(editedBook.totalPages))")
             editComplete = true
 
             // Notify parent view that a book was edited
@@ -161,7 +164,7 @@ final class EditBookViewModel {
 
     @MainActor
     func updatePageNumber(pageId: UUID, newNumber: Int) {
-        LoggingService.shared.debug("EditBookViewModel: Updating page \(pageId) to number \(newNumber)")
+        logger.debug("EditBookViewModel: Updating page \(pageId) to number \(newNumber)")
 
         // Find the page and update its number
         if let index = existingPageList.firstIndex(where: { $0.id == pageId }) {
@@ -180,15 +183,15 @@ final class EditBookViewModel {
             // Replace the entire array to trigger SwiftUI update
             existingPageList = updatedPages
 
-            LoggingService.shared.info("EditBookViewModel: Updated page at index \(index) from number \(oldNumber) to \(newNumber), UI should now reflect change")
+            logger.info("EditBookViewModel: Updated page at index \(index) from number \(oldNumber) to \(newNumber), UI should now reflect change")
         } else {
-            LoggingService.shared.warning("EditBookViewModel: Could not find page with ID \(pageId) to update")
+            logger.warning("EditBookViewModel: Could not find page with ID \(pageId) to update")
         }
     }
 
     @MainActor
     func savePageNumbers() async {
-        LoggingService.shared.debug("EditBookViewModel: savePageNumbers called")
+        logger.debug("EditBookViewModel: savePageNumbers called")
 
         guard !existingPageList.isEmpty else {
             showError(message: "No pages to save")
@@ -202,11 +205,11 @@ final class EditBookViewModel {
             let sortedPages = existingPageList.sorted { $0.pageNumber < $1.pageNumber }
             let newPageOrder = sortedPages.map { $0.id }
             
-            LoggingService.shared.info("EditBookViewModel: Saving new page order with \(newPageOrder.count) pages. New order: \(sortedPages.map { $0.pageNumber })")
+            logger.info("EditBookViewModel: Saving new page order with \(newPageOrder.count) pages. New order: \(sortedPages.map { $0.pageNumber })")
 
             let updatedBook = try await editBookUseCase.reorderPages(book: existingBook, newPageOrder: newPageOrder)
 
-            LoggingService.shared.info("EditBookViewModel: Successfully saved page numbers for book '\(updatedBook.title)'")
+            logger.info("EditBookViewModel: Successfully saved page numbers for book '\(updatedBook.title)'")
             editComplete = true
 
             // Notify parent view that a book was edited

@@ -25,9 +25,9 @@ final class AppInitializationState {
         Task {
             do {
                 try diContainer.dictionaryService.preloadDictionary()
-                print("Dictionary preloaded successfully")
+                LoggingService.shared.info("Dictionary preloaded successfully")
             } catch {
-                print("Failed to preload dictionary: \(error)")
+                LoggingService.shared.error("Failed to preload dictionary", error: error)
             }
         }
 
@@ -37,7 +37,7 @@ final class AppInitializationState {
             currentUser = try await anonymousService.getOrCreateAnonymousUser()
             isInitializing = false
         } catch {
-            print("Failed to initialize anonymous user: \(error)")
+            LoggingService.shared.auth("Failed to initialize anonymous user", level: .error)
             // Create fallback user
             currentUser = AppUser(
                 email: "fallback@local.device",

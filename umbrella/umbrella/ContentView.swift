@@ -21,7 +21,8 @@ struct ContentView: View {
         LibraryScreen(
             viewModel: LibraryViewModel(
                 bookRepository: diContainer.bookRepository,
-                userId: currentUser.id
+                userId: currentUser.id,
+                logger: LoggingService.shared
             ),
             diContainer: diContainer
         )
