@@ -5,29 +5,16 @@ A Chinese learning app built with SwiftUI that helps users learn Chinese charact
 ## Screenshots
 
 ### Library View
-![Library](screenshots/library.png)
 
-*Browse your Chinese learning library with books organized by genre and reading progress.*
+*Browse your Chinese learning library with books.*
 
 ### Dictionary Lookup
-![Dictionary](screenshots/dict.png)
 
-*Instant dictionary lookup for Chinese characters with pinyin, definitions, and stroke order.*
-
-### Book Editing
-![Edit Book](screenshots/edit-book.png)
-
-*Edit and manage your uploaded books with word segmentation and reading tools.*
+*Instant dictionary lookup for Chinese characters with pinyin, definitions.*
 
 ### Upload Books
-![Upload Book](screenshots/upload-book.png)
 
-*Easily upload PDF books using OCR technology to extract Chinese text for learning.*
-
-### Getting Started
-![Empty Library](screenshots/empty-library.png)
-
-*Start your Chinese learning journey by uploading your first book.*
+*Easily scan books using OCR technology to extract Chinese text for learning.*
 
 ## Setup
 
