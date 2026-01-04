@@ -35,6 +35,7 @@ final class LibraryViewModel {
     var showUploadSheet = false
     var showDeleteAlert = false
     var bookToDelete: AppBook?
+    var errorAlert: ErrorAlert?
 
     // Computed properties for UI access
     var currentUserId: UUID? {
@@ -68,7 +69,10 @@ final class LibraryViewModel {
             }
         } catch {
             LoggingService.shared.error("LibraryViewModel: Failed to load books: \(error)")
-            // TODO: Show error to user
+            errorAlert = ErrorAlert(
+                title: "Failed to Load Books",
+                message: "Could not load your book library. Please check your connection and try again."
+            )
         }
     }
 
@@ -85,8 +89,12 @@ final class LibraryViewModel {
         do {
             filteredBooks = try await bookRepository.searchBooks(query: query, userId: userId)
         } catch {
-            print("Failed to search books: \(error)")
+            LoggingService.shared.error("LibraryViewModel: Failed to search books: \(error)")
             filteredBooks = []
+            errorAlert = ErrorAlert(
+                title: "Search Failed",
+                message: "Could not search books. Please try again."
+            )
         }
     }
 
@@ -99,8 +107,11 @@ final class LibraryViewModel {
             books.removeAll { $0.id == book.id }
             applyFiltering()
         } catch {
-            print("Failed to delete book: \(error)")
-            // TODO: Show error to user
+            LoggingService.shared.error("LibraryViewModel: Failed to delete book: \(error)")
+            errorAlert = ErrorAlert(
+                title: "Delete Failed",
+                message: "Could not delete '\(book.title)'. Please try again."
+            )
         }
     }
 
@@ -214,6 +225,13 @@ enum BookFilter: String, CaseIterable {
     }
 }
 
+/// Error alert for user feedback
+struct ErrorAlert: Identifiable {
+    let id = UUID()
+    let title: String
+    let message: String
+}
+
 /// Book list item view model
 struct BookListItem {
     let book: AppBook
@@ -238,7 +256,7 @@ private final class MockBookRepository: BookRepository {
 
     init() {
         // Create sample books for preview
-        let userId = UUID()
+        let _ = UUID()
         let bookId1 = UUID()
         let bookId2 = UUID()
         let bookId3 = UUID()

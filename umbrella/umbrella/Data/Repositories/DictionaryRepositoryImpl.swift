@@ -49,7 +49,7 @@ class DictionaryRepositoryImpl: DictionaryRepository {
     func preloadDictionary() async throws {
         do {
             try dictionaryService.preloadDictionary()
-        } catch let error as DictionaryServiceError {
+        } catch _ as DictionaryServiceError {
             throw DictionaryError.preloadFailed
         } catch {
             throw DictionaryError.unknown(error)

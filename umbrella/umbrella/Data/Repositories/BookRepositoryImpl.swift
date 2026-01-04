@@ -418,7 +418,7 @@ class BookRepositoryImpl: BookRepository {
                 throw BookRepositoryError.bookNotFound
             }
 
-            LoggingService.shared.debug("BookRepositoryImpl: Found book '\(existingBook.title ?? "Unknown")' with \(existingBook.pages.count) pages")
+            LoggingService.shared.debug("BookRepositoryImpl: Found book '\(existingBook.title)' with \(existingBook.pages.count) pages")
 
             // Validate that all page IDs exist in the book
             let existingPageIds = Set(existingBook.pages.map { $0.id })

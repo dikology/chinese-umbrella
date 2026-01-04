@@ -31,7 +31,10 @@ class CoreDataManager {
         container = NSPersistentContainer(name: "umbrella")
 
         if inMemory {
-            container.persistentStoreDescriptions.first!.url = URL(fileURLWithPath: "/dev/null")
+            guard let firstDescription = container.persistentStoreDescriptions.first else {
+                fatalError("No persistent store description found. This is a critical Core Data initialization error.")
+            }
+            firstDescription.url = URL(fileURLWithPath: "/dev/null")
         }
 
         // Load persistent stores (both in-memory and regular)
@@ -68,7 +71,10 @@ class CoreDataManager {
 
     init(customStoreURL: URL) {
         container = NSPersistentContainer(name: "umbrella")
-        container.persistentStoreDescriptions.first!.url = customStoreURL
+        guard let firstDescription = container.persistentStoreDescriptions.first else {
+            fatalError("No persistent store description found. This is a critical Core Data initialization error.")
+        }
+        firstDescription.url = customStoreURL
 
         container.loadPersistentStores { storeDescription, error in
             if let error = error as NSError? {
