@@ -7,6 +7,30 @@
 
 import Foundation
 
+/// HSK level data from complete.json
+struct HSKLevelMapping: Codable {
+    let simplified: String
+    let level: [String]
+
+    /// Extracts the highest HSK level for this word
+    var highestHSKLevel: HSKLevel? {
+        let hskLevels = level.compactMap { levelString -> HSKLevel? in
+            // Parse levels like "new-3", "old-4"
+            if levelString.hasPrefix("new-") {
+                let levelNum = Int(levelString.dropFirst(4)) ?? 0
+                return HSKLevel(rawValue: levelNum)
+            } else if levelString.hasPrefix("old-") {
+                let levelNum = Int(levelString.dropFirst(4)) ?? 0
+                return HSKLevel(rawValue: levelNum)
+            }
+            return nil
+        }
+
+        // Return the highest level found
+        return hskLevels.max(by: { $0.rawValue < $1.rawValue })
+    }
+}
+
 /// Protocol for dictionary lookup operations
 protocol DictionaryService {
     /// Look up a word in the dictionary
@@ -23,6 +47,7 @@ protocol DictionaryService {
 class CEDICTDictionaryService: DictionaryService {
     private var dictionary: [String: DictionaryEntry] = [:]
     private var traditionalToSimplified: [String: String] = [:]
+    private var hskMappings: [String: HSKLevelMapping] = [:]
     private(set) var isLoaded = false
 
     /// Look up a word in the CEDICT dictionary
@@ -40,8 +65,12 @@ class CEDICTDictionaryService: DictionaryService {
         return nil
     }
 
-    /// Preload CEDICT data from bundled file
+    /// Preload CEDICT data and HSK mappings from bundled files
     func preloadDictionary() throws {
+        // Load HSK data first
+        try loadHSKData()
+
+        // Then load CEDICT data
         guard let url = Bundle.main.url(forResource: "cedict_ts", withExtension: "u8") else {
             throw DictionaryServiceError.fileNotFound
         }
@@ -49,6 +78,21 @@ class CEDICTDictionaryService: DictionaryService {
         let content = try String(contentsOf: url, encoding: .utf8)
         try parseCEDICT(content)
         isLoaded = true
+    }
+
+    /// Load HSK level mappings from complete.json
+    private func loadHSKData() throws {
+        guard let url = Bundle.main.url(forResource: "complete", withExtension: "json") else {
+            throw DictionaryServiceError.fileNotFound
+        }
+
+        let data = try Data(contentsOf: url)
+        let hskMappings = try JSONDecoder().decode([HSKLevelMapping].self, from: data)
+
+        // Create lookup dictionary by simplified form
+        for mapping in hskMappings {
+            self.hskMappings[mapping.simplified] = mapping
+        }
     }
 
     /// Parse CEDICT formatted text
@@ -88,13 +132,14 @@ class CEDICTDictionaryService: DictionaryService {
 
             guard !definitions.isEmpty else { continue }
 
-            // Create dictionary entry
+            // Create dictionary entry with HSK level from data
+            let hskLevel = hskMappings[simplified]?.highestHSKLevel
             let entry = DictionaryEntry(
                 simplified: simplified,
                 traditional: traditional,
                 pinyin: pinyin,
                 englishDefinition: definitions.joined(separator: "; "),
-                frequency: estimateHSKLevel(simplified),
+                frequency: hskLevel,
                 examples: [] // Examples would be in a separate file
             )
 
@@ -108,23 +153,6 @@ class CEDICTDictionaryService: DictionaryService {
         }
     }
 
-    /// Estimate HSK level based on word (simplified approach)
-    private func estimateHSKLevel(_ word: String) -> HSKLevel? {
-        // This is a placeholder implementation
-        // In a real app, this would use pre-computed HSK frequency data
-
-        // For now, assign levels based on character count and common patterns
-        switch word.count {
-        case 1:
-            return .hsk1 // Most single characters are HSK 1-2
-        case 2:
-            return .hsk2 // Common two-character words
-        case 3:
-            return .hsk3 // Longer words tend to be higher levels
-        default:
-            return .hsk4 // Very long words are typically advanced
-        }
-    }
 }
 
 /// Errors that can occur during dictionary operations
