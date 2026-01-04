@@ -18,7 +18,12 @@ struct ExistingPageItem: Identifiable, Equatable {
     var position: Int // For reordering
 
     static func == (lhs: ExistingPageItem, rhs: ExistingPageItem) -> Bool {
-        lhs.id == rhs.id
+        // Compare all properties that affect UI display
+        lhs.id == rhs.id &&
+        lhs.pageNumber == rhs.pageNumber &&
+        lhs.originalImagePath == rhs.originalImagePath &&
+        lhs.extractedText == rhs.extractedText &&
+        lhs.position == rhs.position
     }
 }
 
@@ -91,28 +96,23 @@ final class EditBookViewModel {
 
         isLoadingExistingPages = true
 
-        do {
-            LoggingService.shared.debug("EditBookViewModel: Loading existing pages for book '\(existingBook.title)' with \(existingBook.totalPages) pages")
+        LoggingService.shared.debug("EditBookViewModel: Loading existing pages for book '\(existingBook.title)' with \(existingBook.totalPages) pages")
 
-            let pages = await Task.detached {
-                self.existingBook.pages.enumerated().map { index, page in
-                    ExistingPageItem(
-                        id: page.id,
-                        pageNumber: page.pageNumber,
-                        originalImagePath: page.originalImagePath,
-                        extractedText: page.extractedText,
-                        position: index
-                    )
-                }
-            }.value
+        let pages = await Task.detached {
+            self.existingBook.pages.enumerated().map { index, page in
+                ExistingPageItem(
+                    id: page.id,
+                    pageNumber: page.pageNumber,
+                    originalImagePath: page.originalImagePath,
+                    extractedText: page.extractedText,
+                    position: index
+                )
+            }
+        }.value
 
-            self.existingPageList = pages
+        self.existingPageList = pages
 
-            LoggingService.shared.debug("EditBookViewModel: Successfully loaded \(pages.count) existing pages")
-        } catch {
-            LoggingService.shared.error("EditBookViewModel: Failed to load existing pages: \(error.localizedDescription)")
-            // Keep existingPageList empty on error
-        }
+        LoggingService.shared.debug("EditBookViewModel: Successfully loaded \(pages.count) existing pages")
 
         isLoadingExistingPages = false
     }
@@ -162,18 +162,25 @@ final class EditBookViewModel {
     @MainActor
     func updatePageNumber(pageId: UUID, newNumber: Int) {
         LoggingService.shared.debug("EditBookViewModel: Updating page \(pageId) to number \(newNumber)")
-        
+
         // Find the page and update its number
         if let index = existingPageList.firstIndex(where: { $0.id == pageId }) {
             let oldNumber = existingPageList[index].pageNumber
-            existingPageList[index] = ExistingPageItem(
+
+            // Create a new array with the updated page to ensure SwiftUI detects the change
+            var updatedPages = existingPageList
+            updatedPages[index] = ExistingPageItem(
                 id: existingPageList[index].id,
                 pageNumber: newNumber,
                 originalImagePath: existingPageList[index].originalImagePath,
                 extractedText: existingPageList[index].extractedText,
                 position: existingPageList[index].position
             )
-            LoggingService.shared.info("EditBookViewModel: Updated page at index \(index) from number \(oldNumber) to \(newNumber)")
+
+            // Replace the entire array to trigger SwiftUI update
+            existingPageList = updatedPages
+
+            LoggingService.shared.info("EditBookViewModel: Updated page at index \(index) from number \(oldNumber) to \(newNumber), UI should now reflect change")
         } else {
             LoggingService.shared.warning("EditBookViewModel: Could not find page with ID \(pageId) to update")
         }

@@ -383,9 +383,9 @@ extension EditBookViewModelTests {
         #expect(viewModel.existingPageList[2].position == 2)
     }
 
-    @Test("updatePageNumber correctly updates page number")
+    @Test("updatePageNumber correctly updates page number and triggers UI update")
     @MainActor
-    func testUpdatePageNumber_updatesPageNumber() async {
+    func testUpdatePageNumber_updatesPageNumberAndTriggersUIUpdate() async {
         // Given
         let book = createTestBook(title: "Update Number Test Book", pageCount: 3)
         let viewModel = EditBookViewModel(book: book, editBookUseCase: mockUseCase)
@@ -402,10 +402,18 @@ extension EditBookViewModelTests {
         #expect(viewModel.existingPageList.count == 3)
         #expect(viewModel.existingPageList[0].pageNumber == 5)
         #expect(viewModel.existingPageList[0].id == firstPageId)
-        
+
+        // Verify the array was replaced (not just modified) to trigger SwiftUI updates
         // Other pages should remain unchanged
         #expect(viewModel.existingPageList[1].pageNumber == 2)
         #expect(viewModel.existingPageList[2].pageNumber == 3)
+
+        // Test updating another page
+        let secondPageId = viewModel.existingPageList[1].id
+        viewModel.updatePageNumber(pageId: secondPageId, newNumber: 1)
+
+        #expect(viewModel.existingPageList[1].pageNumber == 1)
+        #expect(viewModel.existingPageList[1].id == secondPageId)
     }
 
     @Test("savePageNumbers successfully saves page numbers")

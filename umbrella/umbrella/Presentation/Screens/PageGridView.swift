@@ -36,18 +36,15 @@ struct PageGridView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                if hasPages {
-                    Menu {
-                        Button("Renumber from 1", action: renumberPages)
-                        Button("Sort by number", action: sortByNumber)
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
-                            .foregroundColor(.blue)
+            // Debug logging for data changes
+            let _ = {
+                LoggingService.shared.debug("PageGridView: Rendering with \(existingPages?.count ?? 0) existing pages")
+                if let pages = existingPages {
+                    for (index, page) in pages.enumerated() {
+                        LoggingService.shared.debug("PageGridView: Page \(index): ID=\(page.id), number=\(page.pageNumber)")
                     }
                 }
-            }
-            .padding(.horizontal)
+            }()
 
             if !hasPages {
                 ContentUnavailableView(
@@ -263,38 +260,54 @@ struct ExistingPageThumbnailCard: View {
 }
 
 #Preview("Existing Pages - Edit Mode") {
-    let mockExistingPages = [
-        ExistingPageItem(
-            id: UUID(),
-            pageNumber: 1,
-            originalImagePath: "/mock/path/page1.jpg",
-            extractedText: "This is the first page content",
-            position: 0
-        ),
-        ExistingPageItem(
-            id: UUID(),
-            pageNumber: 2,
-            originalImagePath: "/mock/path/page2.jpg",
-            extractedText: "This is the second page content",
-            position: 1
-        ),
-        ExistingPageItem(
-            id: UUID(),
-            pageNumber: 3,
-            originalImagePath: "/mock/path/page3.jpg",
-            extractedText: "This is the third page content",
-            position: 2
-        )
-    ]
+    struct PreviewWrapper: View {
+        @State private var mockExistingPages = [
+            ExistingPageItem(
+                id: UUID(uuidString: "9E3026A9-9EDD-47CB-8E2D-BAF6B671B198")!,
+                pageNumber: 1,
+                originalImagePath: "/mock/path/page1.jpg",
+                extractedText: "This is the first page content",
+                position: 0
+            ),
+            ExistingPageItem(
+                id: UUID(uuidString: "E200C6ED-3E1D-4457-A7C8-CCA575DBEBE6")!,
+                pageNumber: 2,
+                originalImagePath: "/mock/path/page2.jpg",
+                extractedText: "This is the second page content",
+                position: 1
+            ),
+            ExistingPageItem(
+                id: UUID(uuidString: "AA1AAF29-41D1-4647-9150-24433088E6FA")!,
+                pageNumber: 3,
+                originalImagePath: "/mock/path/page3.jpg",
+                extractedText: "This is the third page content",
+                position: 2
+            )
+        ]
 
-    return PageGridView(
-        pages: .constant([]),
-        existingPages: mockExistingPages,
-        onUpdatePageNumber: { pageId, newNumber in
-            print("Update page \(pageId) to number \(newNumber)")
+        var body: some View {
+            PageGridView(
+                pages: .constant([]),
+                existingPages: mockExistingPages,
+                onUpdatePageNumber: { pageId, newNumber in
+                    // Update the page number in our mock data to test UI updates
+                    if let index = mockExistingPages.firstIndex(where: { $0.id == pageId }) {
+                        mockExistingPages[index] = ExistingPageItem(
+                            id: mockExistingPages[index].id,
+                            pageNumber: newNumber,
+                            originalImagePath: mockExistingPages[index].originalImagePath,
+                            extractedText: mockExistingPages[index].extractedText,
+                            position: mockExistingPages[index].position
+                        )
+                        print("Preview: Updated page \(pageId) to number \(newNumber)")
+                    }
+                }
+            )
+            .padding()
         }
-    )
-    .padding()
+    }
+
+    return PreviewWrapper()
 }
 
 // MARK: - Helper Function
