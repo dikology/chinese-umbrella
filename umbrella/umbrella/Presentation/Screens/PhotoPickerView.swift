@@ -152,7 +152,7 @@ struct PhotoPickerView: View {
                         }
                     }
                 case .failure(let error):
-                    print("Error loading image: \(error)")
+                    LoggingService.shared.error("Error loading image", error: error)
                 }
                 dispatchGroup.leave()
             }

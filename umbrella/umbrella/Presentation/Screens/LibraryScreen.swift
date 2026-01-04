@@ -108,6 +108,7 @@ struct LibraryScreen: View {
                     mainContent
                 }
             }
+            .loadingOverlay(isPresented: viewModel.isLoading, message: "Loading books...")
             .navigationBarHidden(true)
             .sheet(isPresented: $showUploadSheet) {
                 uploadSheetContent

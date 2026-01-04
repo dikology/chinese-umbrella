@@ -2,6 +2,33 @@
 
 A Chinese learning app built with SwiftUI that helps users learn Chinese characters through OCR and interactive reading.
 
+## Screenshots
+
+### Library View
+![Library](screenshots/library.png)
+
+*Browse your Chinese learning library with books organized by genre and reading progress.*
+
+### Dictionary Lookup
+![Dictionary](screenshots/dict.png)
+
+*Instant dictionary lookup for Chinese characters with pinyin, definitions, and stroke order.*
+
+### Book Editing
+![Edit Book](screenshots/edit-book.png)
+
+*Edit and manage your uploaded books with word segmentation and reading tools.*
+
+### Upload Books
+![Upload Book](screenshots/upload-book.png)
+
+*Easily upload PDF books using OCR technology to extract Chinese text for learning.*
+
+### Getting Started
+![Empty Library](screenshots/empty-library.png)
+
+*Start your Chinese learning journey by uploading your first book.*
+
 ## Setup
 
 ### Prerequisites
@@ -27,6 +54,43 @@ A Chinese learning app built with SwiftUI that helps users learn Chinese charact
    ```bash
    open umbrella/umbrella.xcodeproj
    ```
+
+## Preview Mode for Screenshots
+
+The app supports a preview mode that runs with mock data, perfect for taking App Store screenshots or testing the UI with realistic content.
+
+### Enabling Preview Mode
+
+**Xcode Scheme**
+1. In Xcode, select the **umbrella** target.
+2. Go to **Product > Scheme > Edit Scheme...**
+3. Under the "Run" section, select the "Arguments" tab.
+4. Add an entry to **Environment Variables**:
+   - Name: `UMBRELLA_PREVIEW_MODE`
+   - Value: `true`
+   - Ensure the checkbox is selected.
+
+This enables preview mode for all simulator and device runs using that scheme.
+
+### What Preview Mode Includes
+
+When enabled, the app will show:
+- **Journey to the West** (Chinese literature book with sample pages and word segments)
+- **Harry Potter and the Philosopher's Stone** (English fiction book)
+- **Modern Chinese Grammar** (Chinese education book with segmented text)
+
+All books include:
+- Realistic page content with Chinese characters
+- Word segmentation data
+- Proper metadata (authors, genres, page counts)
+
+### Running in Simulator
+
+1. Enable preview mode using one of the methods above
+2. Open the project in Xcode
+3. Select an iOS Simulator (iPhone 15 recommended)
+4. Press `Cmd+R` to run
+5. The app will launch with mock data instead of requiring real books
 
 ## Fastlane Setup
 
@@ -96,10 +160,6 @@ Add these secrets to your GitHub repository:
 #### Keychain (for CI)
 - `MATCH_KEYCHAIN_PASSWORD`: Password for temporary CI keychain
 
-#### Fallback (Username/Password - less secure)
-- `FASTLANE_USER`: Your Apple ID email
-- `FASTLANE_APPLE_APPLICATION_SPECIFIC_PASSWORD`: App-specific password
-
 ### Available Fastlane Lanes
 
 - `test`: Run the test suite
@@ -149,6 +209,41 @@ Add these secrets to your GitHub repository:
 3. Make your changes
 4. Run tests: `bundle exec fastlane test`
 5. Submit a pull request
+
+## Privacy Policy
+
+This app collects minimal data and processes all information locally on your device. See [PRIVACY_POLICY.md](PRIVACY_POLICY.md) for detailed information about data collection and privacy practices.
+
+## Distribution
+
+### TestFlight External Testing
+
+This app is available for external testing via TestFlight. External testers can access the app through TestFlight without requiring developer account access.
+
+#### For Testers
+1. Receive an invitation email from the developer
+2. Click the invitation link to open TestFlight
+3. Install the Chinese Umbrella app
+4. The app will be available on your home screen for 90 days
+
+#### Requirements
+- iOS 17.0 or later
+- iPhone or iPad with camera access
+- At least 100MB free storage space
+
+### App Store Submission
+
+When submitting to the App Store, ensure you have:
+- Privacy Policy URL in App Store Connect
+- Appropriate age rating (4+ recommended for educational apps)
+- App Store screenshots
+- App description and keywords
+
+## Support
+
+For questions about the app or testing:
+- Create an issue in this repository
+- Contact the developer through GitHub
 
 ## License
 

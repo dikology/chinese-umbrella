@@ -169,6 +169,7 @@ struct AuthScreen: View {
                     Spacer()
                 }
             }
+            .loadingOverlay(isPresented: viewModel.isLoading, message: "Signing in...")
         }
     }
 

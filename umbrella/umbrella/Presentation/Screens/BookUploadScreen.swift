@@ -219,7 +219,7 @@ final class BookUploadViewModel {
                 userId: userId
             )
 
-            print("Successfully uploaded book: \(book.title)")
+            LoggingService.shared.info("Successfully uploaded book: \(book.title)")
             uploadComplete = true
 
             // Notify parent view that a book was uploaded

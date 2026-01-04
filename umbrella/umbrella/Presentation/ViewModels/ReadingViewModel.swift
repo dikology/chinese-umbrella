@@ -210,7 +210,7 @@ final class ReadingViewModel {
             try await bookRepository.updateReadingProgress(bookId: book.id, pageIndex: currentPageIndex)
         } catch {
             // Log error but don't show to user for progress updates
-            print("Failed to update book progress: \(error)")
+            LoggingService.shared.reading("Failed to update book progress", level: .error)
         }
     }
 }

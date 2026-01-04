@@ -34,7 +34,7 @@ struct PrimaryButton: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 8) {
+            HStack(spacing: .spacingS) {
                 if isLoading {
                     ProgressView()
                         .tint(.white)
@@ -44,12 +44,12 @@ struct PrimaryButton: View {
                     .font(.caption)
                     .fontWeight(.medium)
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
-            .frame(minWidth: 44, minHeight: 44)
+            .padding(.horizontal, .spacingL)
+            .padding(.vertical, .spacingM)
+            .frame(minWidth: .minTouchTarget, minHeight: .minTouchTarget)
             .background(isEnabled ? colors.primary : colors.primary.opacity(0.4))
             .foregroundColor(.white)
-            .cornerRadius(8)
+            .cornerRadius(.radiusM)
             .shadow(color: colors.shadow, radius: 2, x: 0, y: 1)
         }
         .disabled(!isEnabled || isLoading)

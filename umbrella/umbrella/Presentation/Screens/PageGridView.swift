@@ -299,7 +299,7 @@ struct ExistingPageThumbnailCard: View {
                             extractedText: mockExistingPages[index].extractedText,
                             position: mockExistingPages[index].position
                         )
-                        print("Preview: Updated page \(pageId) to number \(newNumber)")
+                        LoggingService.shared.debug("Preview: Updated page \(pageId) to number \(newNumber)")
                     }
                 }
             )

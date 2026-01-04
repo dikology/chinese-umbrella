@@ -18,12 +18,12 @@ struct PrimaryButtonModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .padding(.horizontal, .spacingL)
+            .padding(.vertical, .spacingM)
             .background(isEnabled ? colors.primary : colors.primary.opacity(0.4))
             .foregroundColor(.white)
             .font(.caption)
-            .cornerRadius(8)
+            .cornerRadius(.radiusM)
             .shadow(color: colors.shadow, radius: 2, x: 0, y: 1)
     }
 }
@@ -39,14 +39,14 @@ struct SecondaryButtonModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .padding(.horizontal, .spacingL)
+            .padding(.vertical, .spacingM)
             .background(Color.clear)
             .foregroundColor(colors.textPrimary)
             .font(.caption)
-            .cornerRadius(8)
+            .cornerRadius(.radiusM)
             .overlay(
-                RoundedRectangle(cornerRadius: 8)
+                RoundedRectangle(cornerRadius: .radiusM)
                     .stroke(colors.divider, lineWidth: 1)
             )
     }
@@ -63,12 +63,12 @@ struct DestructiveButtonModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .padding(.horizontal, 16)
-            .padding(.vertical, 12)
+            .padding(.horizontal, .spacingL)
+            .padding(.vertical, .spacingM)
             .background(isEnabled ? colors.error : colors.error.opacity(0.4))
             .foregroundColor(.white)
             .font(.caption)
-            .cornerRadius(8)
+            .cornerRadius(.radiusM)
             .shadow(color: colors.shadow, radius: 2, x: 0, y: 1)
     }
 }

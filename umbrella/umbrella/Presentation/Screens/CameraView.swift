@@ -79,7 +79,7 @@ class CameraViewController: UIViewController, AVCapturePhotoCaptureDelegate {
         captureSession.sessionPreset = .photo
 
         guard let backCamera = AVCaptureDevice.default(for: .video) else {
-            print("Unable to access back camera")
+            LoggingService.shared.warning("Unable to access back camera")
             return
         }
 
@@ -89,7 +89,7 @@ class CameraViewController: UIViewController, AVCapturePhotoCaptureDelegate {
                 captureSession.addInput(input)
             }
         } catch {
-            print("Error setting up camera input: \(error)")
+            LoggingService.shared.error("Error setting up camera input", error: error)
             return
         }
 
@@ -219,13 +219,13 @@ class CameraViewController: UIViewController, AVCapturePhotoCaptureDelegate {
 
     func photoOutput(_ output: AVCapturePhotoOutput, didFinishProcessingPhoto photo: AVCapturePhoto, error: Error?) {
         if let error = error {
-            print("Error capturing photo: \(error)")
+            LoggingService.shared.error("Error capturing photo", error: error)
             return
         }
 
         guard let imageData = photo.fileDataRepresentation(),
               let image = UIImage(data: imageData) else {
-            print("Failed to create image from photo data")
+            LoggingService.shared.error("Failed to create image from photo data")
             return
         }
 
