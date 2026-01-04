@@ -51,9 +51,14 @@ final class AppInitializationState {
 @main
 struct umbrellaApp: App {
     @State private var appState: AppInitializationState
-    let diContainer = DIContainer()
+    let diContainer: DIContainer
 
     init() {
+        // Check if we should run in preview mode (with mock data)
+        let isPreviewMode = ProcessInfo.processInfo.environment["UMBRELLA_PREVIEW_MODE"] == "true" ||
+                           UserDefaults.standard.bool(forKey: "umbrellaPreviewMode")
+
+        diContainer = isPreviewMode ? DIContainer.preview : DIContainer()
         let container = diContainer
         _appState = State(initialValue: AppInitializationState(diContainer: container))
 

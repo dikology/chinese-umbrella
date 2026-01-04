@@ -28,6 +28,57 @@ A Chinese learning app built with SwiftUI that helps users learn Chinese charact
    open umbrella/umbrella.xcodeproj
    ```
 
+## Preview Mode for Screenshots
+
+The app supports a preview mode that runs with mock data, perfect for taking App Store screenshots or testing the UI with realistic content.
+
+### Enabling Preview Mode
+
+**Option 1: Using the helper script**
+```bash
+./enable-preview-mode.sh
+```
+
+**Option 2: Environment Variable**
+```bash
+export UMBRELLA_PREVIEW_MODE=true
+open umbrella/umbrella.xcodeproj
+```
+
+**Option 3: UserDefaults (persistent)**
+```bash
+defaults write com.dikology.umbrella umbrellaPreviewMode -bool true
+```
+
+### What Preview Mode Includes
+
+When enabled, the app will show:
+- **Journey to the West** (Chinese literature book with sample pages and word segments)
+- **Harry Potter and the Philosopher's Stone** (English fiction book)
+- **Modern Chinese Grammar** (Chinese education book with segmented text)
+
+All books include:
+- Realistic page content with Chinese characters
+- Word segmentation data
+- Reading progress information
+- Proper metadata (authors, genres, page counts)
+
+### Running in Simulator
+
+1. Enable preview mode using one of the methods above
+2. Open the project in Xcode
+3. Select an iOS Simulator (iPhone 15 recommended)
+4. Press `Cmd+R` to run
+5. The app will launch with mock data instead of requiring real books
+
+### Disabling Preview Mode
+
+```bash
+unset UMBRELLA_PREVIEW_MODE
+# or
+defaults delete com.dikology.umbrella umbrellaPreviewMode
+```
+
 ## Fastlane Setup
 
 This project uses fastlane for automated testing and deployment to TestFlight.

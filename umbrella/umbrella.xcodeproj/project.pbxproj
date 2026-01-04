@@ -404,7 +404,7 @@
 				"DEVELOPMENT_TEAM[sdk=iphoneos*]" = 8WHGN987JR;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "Chinese Umbrella";
+				INFOPLIST_KEY_CFBundleDisplayName = umbrella;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
 				INFOPLIST_KEY_NSCameraUsageDescription = "This app uses the camera to capture book pages for text recognition and reading assistance.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "This app accesses your photo library to select existing photos of book pages for text recognition and reading assistance.";
@@ -445,7 +445,7 @@
 				"DEVELOPMENT_TEAM[sdk=iphoneos*]" = 8WHGN987JR;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = "Chinese Umbrella";
+				INFOPLIST_KEY_CFBundleDisplayName = umbrella;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
 				INFOPLIST_KEY_NSCameraUsageDescription = "This app uses the camera to capture book pages for text recognition and reading assistance.";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "This app accesses your photo library to select existing photos of book pages for text recognition and reading assistance.";

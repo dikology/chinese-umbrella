@@ -41,7 +41,7 @@ class DIContainer {
 
     // Repositories - Currently implemented
     lazy var authRepository = AuthRepositoryImpl()
-    lazy var bookRepository = BookRepositoryImpl(coreDataManager: coreDataManager)
+    private(set) var bookRepository: BookRepository!
     lazy var dictionaryService = CEDICTDictionaryService()
     lazy var dictionaryRepository = DictionaryRepositoryImpl(dictionaryService: dictionaryService)
     lazy var wordMarkerRepository = WordMarkerRepositoryImpl()
@@ -88,17 +88,19 @@ class DIContainer {
         )
     }
 
-    // MARK: - Preview Instances (for SwiftUI Previews)
+    // MARK: - Preview Instances (for SwiftUI Previews and Simulator Mock Mode)
 
     @MainActor
-    static let preview = DIContainer(coreDataManager: .preview)
+    static let preview = DIContainer(coreDataManager: .preview, isPreviewMode: true)
 
     // MARK: - Initialization
 
-    init(coreDataManager: CoreDataManager? = nil) {
-        if let coreDataManager = coreDataManager {
-            self.coreDataManager = coreDataManager
-        }
+    init(coreDataManager: CoreDataManager? = nil, isPreviewMode: Bool = false) {
+        // Initialize coreDataManager - use provided one or create new
+        self.coreDataManager = coreDataManager ?? CoreDataManager()
+
+        // Initialize repositories based on mode
+        bookRepository = isPreviewMode ? MockBookRepository() : BookRepositoryImpl(coreDataManager: self.coreDataManager)
     }
 
     // MARK: - Test Helpers
