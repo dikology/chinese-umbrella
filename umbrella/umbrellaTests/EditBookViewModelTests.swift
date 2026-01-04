@@ -364,13 +364,14 @@ private class MockEditBookUseCase: EditBookUseCase {
 
 extension EditBookViewModelTests {
 
-    @Test("ViewModel initializes with existing pages correctly")
-    func testInitializationWithExistingPages() {
+    @Test("ViewModel loads existing pages correctly")
+    func testLoadExistingPages() async {
         // Given
         let book = createTestBook(title: "Reorder Test Book", pageCount: 3)
+        let viewModel = EditBookViewModel(book: book, editBookUseCase: mockUseCase)
 
         // When
-        let viewModel = EditBookViewModel(book: book, editBookUseCase: mockUseCase)
+        await viewModel.loadExistingPages()
 
         // Then
         #expect(viewModel.existingPageList.count == 3)
@@ -382,60 +383,52 @@ extension EditBookViewModelTests {
         #expect(viewModel.existingPageList[2].position == 2)
     }
 
-    @Test("reorderExistingPages correctly reorders pages and updates positions")
+    @Test("updatePageNumber correctly updates page number")
     @MainActor
-    func testReorderExistingPages_updatesOrderAndPositions() {
+    func testUpdatePageNumber_updatesPageNumber() async {
         // Given
-        let book = createTestBook(title: "Reorder Test Book", pageCount: 4)
+        let book = createTestBook(title: "Update Number Test Book", pageCount: 3)
         let viewModel = EditBookViewModel(book: book, editBookUseCase: mockUseCase)
 
-        let originalOrder = viewModel.existingPageList.map { $0.id }
+        await viewModel.loadExistingPages()
 
-        // When - Move page at index 1 to index 0 (swap first two pages)
-        viewModel.reorderExistingPages(from: IndexSet([1]), to: 0)
+        let firstPageId = viewModel.existingPageList[0].id
+        let originalPageNumber = viewModel.existingPageList[0].pageNumber
+
+        // When - Update first page to number 5
+        viewModel.updatePageNumber(pageId: firstPageId, newNumber: 5)
 
         // Then
-        #expect(viewModel.existingPageList.count == 4)
-
-        // Verify the order changed
-        let newOrder = viewModel.existingPageList.map { $0.id }
-        #expect(newOrder != originalOrder)
-
-        // Verify positions are updated
-        for (index, page) in viewModel.existingPageList.enumerated() {
-            #expect(page.position == index)
-        }
-
-        // Verify first page is now what was originally second
-        #expect(viewModel.existingPageList[0].id == originalOrder[1])
-        #expect(viewModel.existingPageList[1].id == originalOrder[0])
+        #expect(viewModel.existingPageList.count == 3)
+        #expect(viewModel.existingPageList[0].pageNumber == 5)
+        #expect(viewModel.existingPageList[0].id == firstPageId)
+        
+        // Other pages should remain unchanged
+        #expect(viewModel.existingPageList[1].pageNumber == 2)
+        #expect(viewModel.existingPageList[2].pageNumber == 3)
     }
 
-    @Test("savePageReorder successfully saves reordered pages")
+    @Test("savePageNumbers successfully saves page numbers")
     @MainActor
-    func testSavePageReorder_successfullySavesOrder() async {
+    func testSavePageNumbers_successfullySaves() async {
         // Given
-        let book = createTestBook(title: "Save Reorder Test", pageCount: 3)
+        let book = createTestBook(title: "Save Numbers Test", pageCount: 3)
         let viewModel = EditBookViewModel(book: book, editBookUseCase: mockUseCase)
 
-        // Reorder pages
-        viewModel.reorderExistingPages(from: IndexSet([2]), to: 0)
+        await viewModel.loadExistingPages()
+
+        // Update page numbers (reverse order: 3, 2, 1)
+        let pageIds = viewModel.existingPageList.map { $0.id }
+        viewModel.updatePageNumber(pageId: pageIds[0], newNumber: 3)
+        viewModel.updatePageNumber(pageId: pageIds[1], newNumber: 2)
+        viewModel.updatePageNumber(pageId: pageIds[2], newNumber: 1)
 
         // Set up mock to return reordered book
-        let reorderedPages = viewModel.existingPageList.map { page in
-            AppBookPage(
-                bookId: book.id,
-                pageNumber: page.position + 1,
-                originalImagePath: "/path/to/page\(page.position + 1).jpg",
-                extractedText: "Page \(page.position + 1) content",
-                words: []
-            )
-        }
         let reorderedBook = AppBook(
             id: book.id,
             title: book.title,
             author: book.author,
-            pages: reorderedPages,
+            pages: book.pages.reversed(),
             currentPageIndex: book.currentPageIndex,
             isLocal: book.isLocal,
             language: book.language,
@@ -449,35 +442,58 @@ extension EditBookViewModelTests {
         mockUseCase.reorderPagesResult = reorderedBook
 
         // When
-        await viewModel.savePageReorder()
+        await viewModel.savePageNumbers()
 
         // Then
         #expect(viewModel.editComplete == true)
         #expect(viewModel.isEditing == false)
 
-        // Verify the use case was called with correct order
-        let expectedOrder = viewModel.existingPageList.map { $0.id }
+        // Verify the use case was called
         #expect(mockUseCase.reorderPagesCallCount == 1)
         #expect(mockUseCase.reorderPagesBookId == book.id)
+        
+        // Verify the order is sorted by page number (1, 2, 3 -> which is pageIds[2], pageIds[1], pageIds[0])
+        let expectedOrder = [pageIds[2], pageIds[1], pageIds[0]]
         #expect(mockUseCase.reorderPagesOrder == expectedOrder)
     }
 
-    @Test("savePageReorder handles errors correctly")
-    func testSavePageReorder_handlesErrors() async {
+    @Test("savePageNumbers handles errors correctly")
+    func testSavePageNumbers_handlesErrors() async {
         // Given
-        let book = createTestBook(title: "Error Reorder Test", pageCount: 2)
+        let book = createTestBook(title: "Error Numbers Test", pageCount: 2)
         let viewModel = EditBookViewModel(book: book, editBookUseCase: mockUseCase)
+
+        await viewModel.loadExistingPages()
 
         // Set up mock to throw error
         mockUseCase.reorderPagesError = NSError(domain: "TestError", code: 1, userInfo: [NSLocalizedDescriptionKey: "Test error"])
 
         // When
-        await viewModel.savePageReorder()
+        await viewModel.savePageNumbers()
 
         // Then
         #expect(viewModel.editComplete == false)
         #expect(viewModel.isEditing == false)
         #expect(viewModel.showError == true)
         #expect(viewModel.errorMessage == "Test error")
+    }
+    
+    @Test("updatePageNumber handles invalid page ID")
+    @MainActor
+    func testUpdatePageNumber_handlesInvalidPageId() async {
+        // Given
+        let book = createTestBook(title: "Invalid ID Test", pageCount: 2)
+        let viewModel = EditBookViewModel(book: book, editBookUseCase: mockUseCase)
+
+        await viewModel.loadExistingPages()
+
+        let originalPageNumbers = viewModel.existingPageList.map { $0.pageNumber }
+
+        // When - Try to update a non-existent page
+        viewModel.updatePageNumber(pageId: UUID(), newNumber: 99)
+
+        // Then - Nothing should change
+        let newPageNumbers = viewModel.existingPageList.map { $0.pageNumber }
+        #expect(originalPageNumbers == newPageNumbers)
     }
 }

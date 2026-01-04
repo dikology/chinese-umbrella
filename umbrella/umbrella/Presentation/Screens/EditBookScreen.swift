@@ -70,8 +70,8 @@ struct EditBookScreen: View {
                                 PageGridView(
                                     pages: $viewModel.pageList,
                                     existingPages: viewModel.existingPageList,
-                                    onReorderExistingPages: { source, destination in
-                                        viewModel.reorderExistingPages(from: source, to: destination)
+                                    onUpdatePageNumber: { pageId, newNumber in
+                                        viewModel.updatePageNumber(pageId: pageId, newNumber: newNumber)
                                     }
                                 )
                             }
@@ -102,14 +102,14 @@ struct EditBookScreen: View {
 
                 // Fixed button at bottom
                 VStack(spacing: 12) {
-                    // Save reordering button (only show if there are existing pages and changes)
+                    // Save page numbers button (only show if there are existing pages)
                     if !viewModel.existingPageList.isEmpty {
                         PrimaryButton(
-                            title: viewModel.isEditing ? "Saving Order..." : "Save Page Order",
+                            title: viewModel.isEditing ? "Saving..." : "Save Page Numbers",
                             isLoading: viewModel.isEditing,
                             isEnabled: true
                         ) {
-                            Task { await viewModel.savePageReorder() }
+                            Task { await viewModel.savePageNumbers() }
                         }
                     }
 
@@ -160,6 +160,9 @@ struct EditBookScreen: View {
                     dismiss()
                 }
             }
+            .task {
+                await viewModel.loadExistingPages()
+            }
         }
     }
 
@@ -176,4 +179,107 @@ struct EditBookScreen: View {
             showPhotoPicker = true
         }
     }
+}
+
+#Preview {
+    // Mock use case for preview
+    struct MockEditBookUseCase: EditBookUseCase {
+        func addPagesToBook(book: AppBook, newImages: [UIImage], updatedTitle: String?, updatedAuthor: String?) async throws -> AppBook {
+            // Mock implementation - return book with one additional page
+            var updatedPages = book.pages
+            let newPage = AppBookPage(
+                id: UUID(),
+                bookId: book.id,
+                pageNumber: book.totalPages + 1,
+                originalImagePath: "/mock/path/new_page.jpg",
+                extractedText: "This is mock extracted text for the new page.",
+                words: [
+                    AppWordSegment(word: "This", startIndex: 0, endIndex: 4),
+                    AppWordSegment(word: "is", startIndex: 5, endIndex: 7),
+                    AppWordSegment(word: "mock", startIndex: 8, endIndex: 12)
+                ]
+            )
+            updatedPages.append(newPage)
+
+            return AppBook(
+                id: book.id,
+                title: updatedTitle ?? book.title,
+                author: updatedAuthor ?? book.author,
+                pages: updatedPages,
+                currentPageIndex: book.currentPageIndex,
+                isLocal: book.isLocal
+            )
+        }
+
+        func reorderPages(book: AppBook, newPageOrder: [UUID]) async throws -> AppBook {
+            // Mock implementation - just return the book as-is
+            return book
+        }
+    }
+
+    // Create consistent book ID for all pages
+    let bookId = UUID()
+
+    // Create mock book with existing pages
+    let mockPages = [
+        AppBookPage(
+            id: UUID(),
+            bookId: bookId,
+            pageNumber: 1,
+            originalImagePath: "/mock/path/page1.jpg",
+            extractedText: "This is the first page of the book with some Chinese text.",
+            words: [
+                AppWordSegment(word: "This", startIndex: 0, endIndex: 4),
+                AppWordSegment(word: "is", startIndex: 5, endIndex: 7),
+                AppWordSegment(word: "the", startIndex: 8, endIndex: 11),
+                AppWordSegment(word: "first", startIndex: 12, endIndex: 17)
+            ]
+        ),
+        AppBookPage(
+            id: UUID(),
+            bookId: bookId,
+            pageNumber: 2,
+            originalImagePath: "/mock/path/page2.jpg",
+            extractedText: "This is the second page with more content.",
+            words: [
+                AppWordSegment(word: "This", startIndex: 0, endIndex: 4),
+                AppWordSegment(word: "is", startIndex: 5, endIndex: 7),
+                AppWordSegment(word: "the", startIndex: 8, endIndex: 11),
+                AppWordSegment(word: "second", startIndex: 12, endIndex: 18)
+            ]
+        ),
+        AppBookPage(
+            id: UUID(),
+            bookId: bookId,
+            pageNumber: 3,
+            originalImagePath: "/mock/path/page3.jpg",
+            extractedText: "This is the third and final page.",
+            words: [
+                AppWordSegment(word: "This", startIndex: 0, endIndex: 4),
+                AppWordSegment(word: "is", startIndex: 5, endIndex: 7),
+                AppWordSegment(word: "the", startIndex: 8, endIndex: 11),
+                AppWordSegment(word: "third", startIndex: 12, endIndex: 17)
+            ]
+        )
+    ]
+
+    let mockBook = AppBook(
+        id: bookId,
+        title: "Sample Chinese Book",
+        author: "Test Author",
+        pages: mockPages,
+        currentPageIndex: 0,
+        isLocal: true,
+        language: "zh-Hans",
+        genre: .literature,
+        description: "A sample book for testing the edit functionality"
+    )
+
+    return EditBookScreen(
+        book: mockBook,
+        editBookUseCase: MockEditBookUseCase(),
+        onBookEdited: {
+            print("Book edited callback triggered")
+        }
+    )
 }

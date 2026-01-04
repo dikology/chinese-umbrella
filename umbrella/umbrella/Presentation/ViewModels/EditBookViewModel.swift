@@ -43,6 +43,7 @@ final class EditBookViewModel {
 
     // Existing page management
     var existingPageList: [ExistingPageItem] = []
+    var isLoadingExistingPages = false
 
     // UI state
     var isEditing = false
@@ -81,18 +82,39 @@ final class EditBookViewModel {
         self.bookTitle = book.title
         self.bookAuthor = book.author ?? ""
 
-        // Initialize existing pages for editing
-        self.existingPageList = book.pages.enumerated().map { index, page in
-            ExistingPageItem(
-                id: page.id,
-                pageNumber: page.pageNumber,
-                originalImagePath: page.originalImagePath,
-                extractedText: page.extractedText,
-                position: index
-            )
+        LoggingService.shared.debug("EditBookViewModel init complete: bookTitle=\(bookTitle), bookAuthor=\(bookAuthor), existingPageCount=\(existingPageCount)")
+    }
+
+    @MainActor
+    func loadExistingPages() async {
+        guard !isLoadingExistingPages && existingPageList.isEmpty else { return }
+
+        isLoadingExistingPages = true
+
+        do {
+            LoggingService.shared.debug("EditBookViewModel: Loading existing pages for book '\(existingBook.title)' with \(existingBook.totalPages) pages")
+
+            let pages = await Task.detached {
+                self.existingBook.pages.enumerated().map { index, page in
+                    ExistingPageItem(
+                        id: page.id,
+                        pageNumber: page.pageNumber,
+                        originalImagePath: page.originalImagePath,
+                        extractedText: page.extractedText,
+                        position: index
+                    )
+                }
+            }.value
+
+            self.existingPageList = pages
+
+            LoggingService.shared.debug("EditBookViewModel: Successfully loaded \(pages.count) existing pages")
+        } catch {
+            LoggingService.shared.error("EditBookViewModel: Failed to load existing pages: \(error.localizedDescription)")
+            // Keep existingPageList empty on error
         }
 
-        LoggingService.shared.debug("EditBookViewModel init complete: bookTitle=\(bookTitle), bookAuthor=\(bookAuthor), existingPageCount=\(existingPageCount), existingPageList.count=\(existingPageList.count)")
+        isLoadingExistingPages = false
     }
 
     @MainActor
@@ -138,34 +160,46 @@ final class EditBookViewModel {
     }
 
     @MainActor
-    func reorderExistingPages(from source: IndexSet, to destination: Int) {
-        LoggingService.shared.debug("EditBookViewModel: reorderExistingPages from \(source) to \(destination)")
-        existingPageList.move(fromOffsets: source, toOffset: destination)
-        // Update positions
-        for (index, _) in existingPageList.enumerated() {
-            existingPageList[index].position = index
+    func updatePageNumber(pageId: UUID, newNumber: Int) {
+        LoggingService.shared.debug("EditBookViewModel: Updating page \(pageId) to number \(newNumber)")
+        
+        // Find the page and update its number
+        if let index = existingPageList.firstIndex(where: { $0.id == pageId }) {
+            let oldNumber = existingPageList[index].pageNumber
+            existingPageList[index] = ExistingPageItem(
+                id: existingPageList[index].id,
+                pageNumber: newNumber,
+                originalImagePath: existingPageList[index].originalImagePath,
+                extractedText: existingPageList[index].extractedText,
+                position: existingPageList[index].position
+            )
+            LoggingService.shared.info("EditBookViewModel: Updated page at index \(index) from number \(oldNumber) to \(newNumber)")
+        } else {
+            LoggingService.shared.warning("EditBookViewModel: Could not find page with ID \(pageId) to update")
         }
-        LoggingService.shared.debug("EditBookViewModel: Reordered existing pages, new count: \(existingPageList.count)")
     }
 
     @MainActor
-    func savePageReorder() async {
-        LoggingService.shared.debug("EditBookViewModel: savePageReorder called")
+    func savePageNumbers() async {
+        LoggingService.shared.debug("EditBookViewModel: savePageNumbers called")
 
         guard !existingPageList.isEmpty else {
-            showError(message: "No pages to reorder")
+            showError(message: "No pages to save")
             return
         }
 
         isEditing = true
 
         do {
-            let newPageOrder = existingPageList.map { $0.id }
-            LoggingService.shared.info("EditBookViewModel: Saving new page order with \(newPageOrder.count) pages")
+            // Sort pages by their page number to get the new order
+            let sortedPages = existingPageList.sorted { $0.pageNumber < $1.pageNumber }
+            let newPageOrder = sortedPages.map { $0.id }
+            
+            LoggingService.shared.info("EditBookViewModel: Saving new page order with \(newPageOrder.count) pages. New order: \(sortedPages.map { $0.pageNumber })")
 
             let updatedBook = try await editBookUseCase.reorderPages(book: existingBook, newPageOrder: newPageOrder)
 
-            LoggingService.shared.info("EditBookViewModel: Successfully reordered pages in book '\(updatedBook.title)'")
+            LoggingService.shared.info("EditBookViewModel: Successfully saved page numbers for book '\(updatedBook.title)'")
             editComplete = true
 
             // Notify parent view that a book was edited
