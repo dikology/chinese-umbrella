@@ -475,7 +475,7 @@ func segmentChineseText(_ text: String) async -> [AppWordSegment] {
 
 ---
 
-#### Issue: Heavy Init in EditBookViewModel -- 04.01.2026
+#### Issue: Heavy Init in EditBookViewModel
 **Current:**
 ```swift
 init(book: AppBook, ...) {
@@ -563,7 +563,7 @@ func deleteBook(_ book: AppBook) async {
 
 ---
 
-#### Issue: Loading States Not Visible
+#### Issue: Loading States Not Visible -- 04.01.2026
 **Problem:** Many async operations have `isLoading` flags but don't show clear UI feedback.
 
 **Recommended:**

@@ -28,6 +28,7 @@ struct DictionaryRepositoryTests {
     }
 
     @Test("Character lookup functionality")
+    @MainActor
     func testLookupCharacter() async throws {
         // Setup
         let mockService = MockDictionaryService()
@@ -48,6 +49,7 @@ struct DictionaryRepositoryTests {
     }
 
     @Test("Word lookup functionality")
+    @MainActor
     func testLookupWord() async throws {
         // Setup
         let mockService = MockDictionaryService()
@@ -68,6 +70,7 @@ struct DictionaryRepositoryTests {
     }
 
     @Test("Dictionary preloading")
+    @MainActor
     func testDictionaryPreloading() async throws {
         // Setup
         let mockService = MockDictionaryService()
@@ -81,6 +84,7 @@ struct DictionaryRepositoryTests {
     }
 
     @Test("Dictionary loaded state")
+    @MainActor
     func testIsDictionaryLoaded() async {
         // Setup
         let mockService = MockDictionaryService()
@@ -98,6 +102,7 @@ struct DictionaryRepositoryTests {
     }
 
     @Test("Examples retrieval")
+    @MainActor
     func testGetExamples() async throws {
         // Setup
         let mockService = MockDictionaryService()
