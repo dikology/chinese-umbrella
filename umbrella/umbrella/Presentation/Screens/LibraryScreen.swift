@@ -26,6 +26,165 @@ struct LibraryScreen: View {
         self.viewModel = viewModel
     }
 
+    // MARK: - Header Section
+    private var headerSection: some View {
+        VStack(spacing: 16) {
+            // Title and upload button
+            HStack {
+                Text("Library")
+                    .titleStyle()
+
+                Spacer()
+
+                Button {
+                    showUploadSheet = true
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.title2)
+                        .foregroundColor(colors.primary)
+                }
+            }
+
+            // Search bar (Phase 3+)
+//            HStack {
+//                Image(systemName: "magnifyingglass")
+//                    .foregroundColor(colors.textSecondary)
+//
+//                TextField("Search books...", text: $searchText)
+//                    .adaptiveTextFieldStyle()
+//                    .onChange(of: searchText) { oldValue, newValue in
+//                        Task {
+//                            await viewModel.searchBooks(query: newValue)
+//                        }
+//                    }
+//
+//                if !searchText.isEmpty {
+//                    Button {
+//                        searchText = ""
+//                        Task {
+//                            await viewModel.searchBooks(query: "")
+//                        }
+//                    } label: {
+//                        Image(systemName: "xmark.circle.fill")
+//                            .foregroundColor(colors.textSecondary)
+//                    }
+//                }
+//            }
+//            .padding(12)
+//            .background(colors.searchBackground)
+//            .cornerRadius(8)
+
+            // Filter pills
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(BookFilter.allCases, id: \.self) { filter in
+                        FilterPill(
+                            filter: filter,
+                            isSelected: viewModel.selectedFilter == filter,
+                            action: {
+                                viewModel.setFilter(filter)
+                            }
+                        )
+                    }
+                }
+                .padding(.horizontal, 4)
+            }
+        }
+        .padding(.horizontal)
+        .padding(.top, 20)
+        .padding(.bottom, 16)
+    }
+
+    // MARK: - Main Content
+    private var mainContent: some View {
+        VStack(spacing: 0) {
+            // Book count
+            HStack {
+                Text(viewModel.bookCountText)
+                    .bodySecondaryStyle()
+                Spacer()
+            }
+            .padding(.horizontal)
+
+            // Book list or empty state
+            if viewModel.hasBooks {
+                List(viewModel.displayBooks) { book in
+                    BookListRow(
+                        book: book,
+                        onSelect: {
+                            LoggingService.shared.debug("LibraryScreen: Book selected: '\(book.title)' with \(book.totalPages) pages")
+                            selectedBook = book
+                        }
+                    )
+                    .listRowInsets(EdgeInsets())
+                    .listRowSeparator(.hidden)
+                    .listRowBackground(Color.clear)
+                    .swipeActions(edge: .trailing) {
+                        Button(role: .destructive, action: {
+                            viewModel.showDeleteConfirmation(for: book)
+                        }) {
+                            Label("Delete", systemImage: "trash")
+                        }
+                        Button(action: {
+                            LoggingService.shared.debug("LibraryScreen: Setting bookToEdit to book with title: \(book.title), pages: \(book.totalPages)")
+                            bookToEdit = book
+                            showEditSheet = true
+                        }) {
+                            Label("Edit", systemImage: "pencil")
+                        }
+                        .tint(colors.primary)
+                    }
+                }
+                .listStyle(.plain)
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+            } else {
+                EmptyLibraryView(message: viewModel.emptyStateMessage)
+            }
+
+            Spacer()
+        }
+    }
+
+    // MARK: - Sheet Content
+    private var uploadSheetContent: some View {
+        Group {
+            if let userId = viewModel.currentUserId {
+                BookUploadScreen(
+                    bookUploadUseCase: DIContainer.bookUploadUseCase,
+                    userId: userId,
+                    onBookUploaded: {
+                        Task {
+                            await viewModel.loadBooks()
+                        }
+                    }
+                )
+            } else {
+                EmptyView()
+            }
+        }
+    }
+
+    private var editSheetContent: some View {
+        Group {
+            if let book = bookToEdit {
+                EditBookScreen(
+                    book: book,
+                    editBookUseCase: DIContainer.editBookUseCase,
+                    onBookEdited: {
+                        LoggingService.shared.debug("LibraryScreen: onBookEdited callback triggered")
+                        Task {
+                            await viewModel.loadBooks()
+                            LoggingService.shared.debug("LibraryScreen: loadBooks completed after book edit")
+                        }
+                    }
+                )
+            } else {
+                EmptyView()
+            }
+        }
+    }
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -33,151 +192,16 @@ struct LibraryScreen: View {
                     .ignoresSafeArea()
 
                 VStack(spacing: 0) {
-                    // Header with search and filter
-                    VStack(spacing: 16) {
-                        // Title and upload button
-                        HStack {
-                            Text("My Library")
-                                .titleStyle()
-
-                            Spacer()
-
-                            Button {
-                                showUploadSheet = true
-                            } label: {
-                                Image(systemName: "plus")
-                                    .font(.title2)
-                                    .foregroundColor(colors.primary)
-                            }
-                        }
-
-                    // Search bar
-                    HStack {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundColor(colors.textSecondary)
-
-                        TextField("Search books...", text: $searchText)
-                            .adaptiveTextFieldStyle()
-                            .onChange(of: searchText) { oldValue, newValue in
-                                Task {
-                                    await viewModel.searchBooks(query: newValue)
-                                }
-                            }
-
-                        if !searchText.isEmpty {
-                            Button {
-                                searchText = ""
-                                Task {
-                                    await viewModel.searchBooks(query: "")
-                                }
-                            } label: {
-                                Image(systemName: "xmark.circle.fill")
-                                    .foregroundColor(colors.textSecondary)
-                            }
-                        }
-                    }
-                    .padding(12)
-                    .background(colors.searchBackground)
-                    .cornerRadius(8)
-
-                    // Filter pills
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            ForEach(BookFilter.allCases, id: \.self) { filter in
-                                FilterPill(
-                                    filter: filter,
-                                    isSelected: viewModel.selectedFilter == filter,
-                                    action: {
-                                        viewModel.setFilter(filter)
-                                    }
-                                )
-                            }
-                        }
-                        .padding(.horizontal, 4)
-                    }
+                    headerSection
+                    mainContent
                 }
-                .padding(.horizontal)
-                .padding(.top, 20)
-                .padding(.bottom, 16)
-
-                // Book count
-                HStack {
-                    Text(viewModel.bookCountText)
-                        .bodySecondaryStyle()
-                    Spacer()
-                }
-                .padding(.horizontal)
-
-                // Book list or empty state
-                if viewModel.hasBooks {
-                    List(viewModel.displayBooks) { book in
-                        BookListRow(
-                            book: book,
-                            onSelect: {
-                                LoggingService.shared.debug("LibraryScreen: Book selected: '\(book.title)' with \(book.totalPages) pages")
-                                selectedBook = book
-                            }
-                        )
-                        .listRowInsets(EdgeInsets())
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                        .swipeActions(edge: .leading) {
-                            Button(action: {
-                                LoggingService.shared.debug("LibraryScreen: Setting bookToEdit to book with title: \(book.title), pages: \(book.totalPages)")
-                                bookToEdit = book
-                                showEditSheet = true
-                            }) {
-                                Label("Edit", systemImage: "pencil")
-                            }
-                            .tint(colors.primary)
-                        }
-                        .swipeActions(edge: .trailing) {
-                            Button(role: .destructive, action: {
-                                viewModel.showDeleteConfirmation(for: book)
-                            }) {
-                                Label("Delete", systemImage: "trash")
-                            }
-                        }
-                    }
-                    .listStyle(.plain)
-                    .padding(.horizontal)
-                    .padding(.vertical, 8)
-                } else {
-                    EmptyLibraryView(message: viewModel.emptyStateMessage)
-                }
-
-                Spacer()
             }
             .navigationBarHidden(true)
             .sheet(isPresented: $showUploadSheet) {
-                if let userId = viewModel.currentUserId {
-                    BookUploadScreen(
-                        bookUploadUseCase: DIContainer.bookUploadUseCase,
-                        userId: userId,
-                        onBookUploaded: {
-                            Task {
-                                await viewModel.loadBooks()
-                            }
-                        }
-                    )
-                }
+                uploadSheetContent
             }
             .sheet(isPresented: $showEditSheet) {
-                if let book = bookToEdit {
-                    EditBookScreen(
-                        book: book,
-                        editBookUseCase: DIContainer.editBookUseCase,
-                        onBookEdited: {
-                            LoggingService.shared.debug("LibraryScreen: onBookEdited callback triggered")
-                            Task {
-                                await viewModel.loadBooks()
-                                LoggingService.shared.debug("LibraryScreen: loadBooks completed after book edit")
-                            }
-                        }
-                    )
-                } else {
-                    EmptyView()
-                }
+                editSheetContent
             }
             .onChange(of: showEditSheet) { oldValue, newValue in
                 if newValue {
@@ -187,7 +211,6 @@ struct LibraryScreen: View {
                         LoggingService.shared.warning("LibraryScreen: Attempting to show EditBookScreen but bookToEdit is nil")
                     }
                 }
-            }
             }
             .alert("Delete Book", isPresented: Binding(
                 get: { viewModel.showDeleteAlert },
@@ -200,9 +223,17 @@ struct LibraryScreen: View {
                     viewModel.confirmDelete()
                 }
             } message: {
-                if let book = viewModel.bookToDelete {
-                    Text("Are you sure you want to delete '\(book.title)'? This action cannot be undone.")
-                }
+                Text(viewModel.bookToDelete.map { "Are you sure you want to delete '\($0.title)'? This action cannot be undone." } ?? "Are you sure you want to delete this book?")
+            }
+            .alert(item: Binding(
+                get: { viewModel.errorAlert },
+                set: { viewModel.errorAlert = $0 }
+            )) { (error: ErrorAlert) in
+                Alert(
+                    title: Text(error.title),
+                    message: Text(error.message),
+                    dismissButton: .default(Text("OK"))
+                )
             }
             .onAppear {
                 Task {
@@ -262,15 +293,15 @@ struct BookListRow: View {
             CardContainer {
                 HStack(spacing: 16) {
                     // Book cover placeholder
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(colors.filterInactive)
-                            .frame(width: 60, height: 80)
-
-                        Image(systemName: book.isLocal ? "camera" : "globe")
-                            .font(.title2)
-                            .foregroundColor(colors.textSecondary)
-                    }
+//                    ZStack {
+//                        RoundedRectangle(cornerRadius: 8)
+//                            .fill(colors.filterInactive)
+//                            .frame(width: 60, height: 80)
+//
+//                        Image(systemName: book.isLocal ? "camera" : "globe")
+//                            .font(.title2)
+//                            .foregroundColor(colors.textSecondary)
+//                    }
 
                     // Book info
                     VStack(alignment: .leading, spacing: 4) {

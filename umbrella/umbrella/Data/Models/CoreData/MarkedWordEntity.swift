@@ -38,7 +38,7 @@ extension CDMarkedWord {
             word: word,
             readingDate: readingDate,
             contextSnippet: contextSnippet,
-            textId: book.id ?? UUID(), // Handle optional id with fallback
+            textId: book.id, // Handle optional id with fallback
             pageNumber: Int(pageNumber),
             markedCount: Int(markedCount)
         )

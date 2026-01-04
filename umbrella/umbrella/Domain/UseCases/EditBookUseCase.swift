@@ -158,7 +158,7 @@ class DefaultEditBookUseCase: EditBookUseCase {
         }
 
         // Create updated book
-        let updatedBook = AppBook(
+        let _ = AppBook(
             id: book.id,
             title: book.title,
             author: book.author,

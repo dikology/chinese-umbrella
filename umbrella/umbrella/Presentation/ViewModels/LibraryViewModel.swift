@@ -35,6 +35,7 @@ final class LibraryViewModel {
     var showUploadSheet = false
     var showDeleteAlert = false
     var bookToDelete: AppBook?
+    var errorAlert: ErrorAlert?
 
     // Computed properties for UI access
     var currentUserId: UUID? {
@@ -68,7 +69,10 @@ final class LibraryViewModel {
             }
         } catch {
             LoggingService.shared.error("LibraryViewModel: Failed to load books: \(error)")
-            // TODO: Show error to user
+            errorAlert = ErrorAlert(
+                title: "Failed to Load Books",
+                message: "Could not load your book library. Please check your connection and try again."
+            )
         }
     }
 
@@ -85,8 +89,12 @@ final class LibraryViewModel {
         do {
             filteredBooks = try await bookRepository.searchBooks(query: query, userId: userId)
         } catch {
-            print("Failed to search books: \(error)")
+            LoggingService.shared.error("LibraryViewModel: Failed to search books: \(error)")
             filteredBooks = []
+            errorAlert = ErrorAlert(
+                title: "Search Failed",
+                message: "Could not search books. Please try again."
+            )
         }
     }
 
@@ -99,8 +107,11 @@ final class LibraryViewModel {
             books.removeAll { $0.id == book.id }
             applyFiltering()
         } catch {
-            print("Failed to delete book: \(error)")
-            // TODO: Show error to user
+            LoggingService.shared.error("LibraryViewModel: Failed to delete book: \(error)")
+            errorAlert = ErrorAlert(
+                title: "Delete Failed",
+                message: "Could not delete '\(book.title)'. Please try again."
+            )
         }
     }
 
@@ -127,15 +138,8 @@ final class LibraryViewModel {
             filteredBooks = books
         case .local:
             filteredBooks = books.filter { $0.isLocal }
-        case .publicLibrary:
+        case .groupLibrary:
             filteredBooks = books.filter { !$0.isLocal }
-        case .recent:
-            // Get books read in the last 7 days
-            let sevenDaysAgo = Calendar.current.date(byAdding: .day, value: -7, to: Date())!
-            filteredBooks = books.filter { $0.updatedDate > sevenDaysAgo }
-                .sorted { $0.updatedDate > $1.updatedDate }
-        case .completed:
-            filteredBooks = books.filter { $0.isCompleted }
         }
     }
 
@@ -163,12 +167,8 @@ final class LibraryViewModel {
                 return "No books yet. Upload your first book to get started!"
             case .local:
                 return "No uploaded books yet. Use the camera or photo library to add books."
-            case .publicLibrary:
-                return "No public library books available yet."
-            case .recent:
-                return "No recently read books."
-            case .completed:
-                return "No completed books yet."
+            case .groupLibrary:
+                return "No group library books available yet."
             }
         }
     }
@@ -199,19 +199,22 @@ final class LibraryViewModel {
 enum BookFilter: String, CaseIterable {
     case all = "All Books"
     case local = "My Books"
-    case publicLibrary = "Public Library"
-    case recent = "Recent"
-    case completed = "Completed"
+    case groupLibrary = "Group Library"
 
     var icon: String {
         switch self {
         case .all: return "books.vertical"
         case .local: return "camera"
-        case .publicLibrary: return "globe"
-        case .recent: return "clock"
-        case .completed: return "checkmark.circle"
+        case .groupLibrary: return "globe"
         }
     }
+}
+
+/// Error alert for user feedback
+struct ErrorAlert: Identifiable {
+    let id = UUID()
+    let title: String
+    let message: String
 }
 
 /// Book list item view model
@@ -238,7 +241,7 @@ private final class MockBookRepository: BookRepository {
 
     init() {
         // Create sample books for preview
-        let userId = UUID()
+        let _ = UUID()
         let bookId1 = UUID()
         let bookId2 = UUID()
         let bookId3 = UUID()
