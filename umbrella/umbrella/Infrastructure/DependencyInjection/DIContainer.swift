@@ -12,13 +12,13 @@ import Foundation
 ///
 /// Phase 1 (Week 5-6): Camera integration, photo picker, image handling
 /// Added book upload functionality with OCR processing
-struct DIContainer {
+class DIContainer {
     // MARK: - Domain Layer
 
     // Use Cases
-    static let authUseCase = AuthUseCase(repository: authRepository, keychainService: keychainService)
-    static let bookMetadataService = DefaultBookMetadataService()
-    static let bookUploadUseCase = DefaultBookUploadUseCase(
+    lazy var authUseCase = AuthUseCase(repository: authRepository, keychainService: keychainService)
+    lazy var bookMetadataService = DefaultBookMetadataService()
+    lazy var bookUploadUseCase = DefaultBookUploadUseCase(
         ocrService: ocrService,
         imageProcessingService: imageProcessingService,
         textSegmentationService: textSegmentationService,
@@ -26,7 +26,7 @@ struct DIContainer {
         bookRepository: bookRepository
     )
 
-    static let editBookUseCase = DefaultEditBookUseCase(
+    lazy var editBookUseCase = DefaultEditBookUseCase(
         ocrService: ocrService,
         imageProcessingService: imageProcessingService,
         textSegmentationService: textSegmentationService,
@@ -40,11 +40,11 @@ struct DIContainer {
     // MARK: - Data Layer
 
     // Repositories - Currently implemented
-    static let authRepository = AuthRepositoryImpl()
-    static let bookRepository = BookRepositoryImpl(coreDataManager: coreDataManager)
-    static let dictionaryService = CEDICTDictionaryService()
-    static let dictionaryRepository = DictionaryRepositoryImpl(dictionaryService: dictionaryService)
-    static let wordMarkerRepository = WordMarkerRepositoryImpl()
+    lazy var authRepository = AuthRepositoryImpl()
+    lazy var bookRepository = BookRepositoryImpl(coreDataManager: coreDataManager)
+    lazy var dictionaryService = CEDICTDictionaryService()
+    lazy var dictionaryRepository = DictionaryRepositoryImpl(dictionaryService: dictionaryService)
+    lazy var wordMarkerRepository = WordMarkerRepositoryImpl()
 
     // TODO: Implement in future phases
     // static let readingProgressRepository = ReadingProgressRepositoryImpl()
@@ -54,10 +54,10 @@ struct DIContainer {
     // MARK: - Infrastructure Layer
 
     // Services
-    static let keychainService = KeychainService()
-    static let ocrService = AppleVisionOCRService()
-    static let imageProcessingService = DefaultImageProcessingService()
-    static let textSegmentationService = LocalTextSegmentationService(dictionaryService: dictionaryService)
+    lazy var keychainService = KeychainService()
+    lazy var ocrService = AppleVisionOCRService()
+    lazy var imageProcessingService = DefaultImageProcessingService()
+    lazy var textSegmentationService = LocalTextSegmentationService(dictionaryService: dictionaryService)
     // static let notificationService = NotificationService()
     // static let storageService = FileSystemStorageService()
     // static let loggingService = ConsoleLoggingService()
@@ -68,17 +68,17 @@ struct DIContainer {
     // static let apiClient = APIClient()
     // static let networkManager = NetworkManager()
 
-    // MARK: - Core Data
+    // MARK: - Core Data (Injected)
 
-    static let coreDataManager = CoreDataManager.shared
+    private(set) lazy var coreDataManager: CoreDataManager = CoreDataManager()
 
     // MARK: - View Models
 
     @MainActor
-    static let anonymousUserService = AnonymousUserService(keychainService: keychainService, authRepository: authRepository, coreDataManager: coreDataManager)
-    
+    lazy var anonymousUserService = AnonymousUserService(keychainService: keychainService, authRepository: authRepository, coreDataManager: coreDataManager)
+
     @MainActor
-    static func makeReadingViewModel(userId: UUID) -> ReadingViewModel {
+    func makeReadingViewModel(userId: UUID) -> ReadingViewModel {
         return ReadingViewModel(
             userId: userId,
             bookRepository: bookRepository,
@@ -91,14 +91,22 @@ struct DIContainer {
     // MARK: - Preview Instances (for SwiftUI Previews)
 
     @MainActor
-    static let preview = DIContainer(
-        coreDataManager: .preview,
-        inMemory: true
-    )
+    static let preview = DIContainer(coreDataManager: .preview)
 
-    let coreDataManager: CoreDataManager
+    // MARK: - Initialization
 
-    init(coreDataManager: CoreDataManager = .shared, inMemory: Bool = false) {
-        self.coreDataManager = inMemory ? .preview : coreDataManager
+    init(coreDataManager: CoreDataManager? = nil) {
+        if let coreDataManager = coreDataManager {
+            self.coreDataManager = coreDataManager
+        }
+    }
+
+    // MARK: - Test Helpers
+
+    /// Create a DIContainer with in-memory Core Data for testing
+    static func withTestContainer() -> DIContainer {
+        let container = DIContainer()
+        container.coreDataManager = CoreDataManager(inMemory: true)
+        return container
     }
 }

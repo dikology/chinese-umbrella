@@ -12,7 +12,7 @@ import CoreData
 class BookRepositoryImpl: BookRepository {
     private let coreDataManager: CoreDataManager
 
-    init(coreDataManager: CoreDataManager = .shared) {
+    init(coreDataManager: CoreDataManager) {
         self.coreDataManager = coreDataManager
     }
 
@@ -107,9 +107,9 @@ class BookRepositoryImpl: BookRepository {
             // Update the existing book
             existingBook.update(from: book)
 
-            // Save pages (inline the savePages logic)
-            LoggingService.shared.debug("BookRepositoryImpl: Calling savePagesInline with \(book.pages.count) pages")
-            try self.savePagesInline(book.pages, for: existingBook, in: context)
+            // Save pages
+            LoggingService.shared.debug("BookRepositoryImpl: Calling savePages with \(book.pages.count) pages, will delete \(existingBook.pages.count) existing pages")
+            try self.savePages(book.pages, for: existingBook, in: context)
 
             LoggingService.shared.debug("BookRepositoryImpl: Context save starting...")
             try context.save()
@@ -122,40 +122,6 @@ class BookRepositoryImpl: BookRepository {
         }
     }
 
-    // MARK: - Inline Helper Methods
-
-    private func savePagesInline(_ pages: [AppBookPage], for bookEntity: CDBook, in context: NSManagedObjectContext) throws {
-        LoggingService.shared.debug("BookRepositoryImpl: savePagesInline called with \(pages.count) pages, deleting \(bookEntity.pages.count) existing pages")
-
-        // Remove existing pages
-        for page in bookEntity.pages {
-            context.delete(page)
-        }
-        LoggingService.shared.debug("BookRepositoryImpl: Deleted existing pages")
-
-        // Create new pages
-        for (index, page) in pages.enumerated() {
-            LoggingService.shared.debug("BookRepositoryImpl: Creating page \(index + 1)/\(pages.count) with pageNumber \(page.pageNumber)")
-            let pageEntity = CDBookPage(context: context)
-            pageEntity.id = page.id
-            pageEntity.book = bookEntity
-            pageEntity.createdAt = Date()
-            pageEntity.update(from: page)
-
-            // Save word segments
-            try saveWordSegmentsInline(page.words, for: pageEntity, in: context)
-        }
-        LoggingService.shared.debug("BookRepositoryImpl: Finished creating all pages")
-    }
-
-    private func saveWordSegmentsInline(_ segments: [AppWordSegment], for pageEntity: CDBookPage, in context: NSManagedObjectContext) throws {
-        for segment in segments {
-            let segmentEntity = CDWordSegment(context: context)
-            segmentEntity.id = segment.id
-            segmentEntity.page = pageEntity
-            segmentEntity.update(from: segment)
-        }
-    }
 
     func deleteBook(_ bookId: UUID) async throws {
         let context = coreDataManager.backgroundContext

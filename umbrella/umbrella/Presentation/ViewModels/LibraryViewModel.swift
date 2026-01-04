@@ -15,20 +15,23 @@ protocol AuthViewModelProtocol {
 }
 
 /// ViewModel for the library screen managing book collections
+/// Represents the current state of the library view
+enum LibraryViewState {
+    case loading
+    case loaded([AppBook])
+    case error(String)
+}
+
 @Observable
 final class LibraryViewModel {
     private let bookRepository: BookRepository
     private let userId: UUID
 
     // Data
-    var books: [AppBook] = []
-    var filteredBooks: [AppBook] = []
     var selectedBook: AppBook?
 
     // State
-    var isLoading = false
-    var isSearching = false
-    var searchQuery = ""
+    var viewState: LibraryViewState = .loading
     var selectedFilter: BookFilter = .all
 
     // UI State
@@ -52,8 +55,7 @@ final class LibraryViewModel {
     @MainActor
     func loadBooks() async {
         LoggingService.shared.debug("LibraryViewModel: loadBooks called")
-        isLoading = true
-        defer { isLoading = false }
+        viewState = .loading
 
         do {
             let loadedBooks = try await bookRepository.getBooks(for: userId)
@@ -61,14 +63,15 @@ final class LibraryViewModel {
             for (index, book) in loadedBooks.enumerated() {
                 LoggingService.shared.debug("LibraryViewModel: Book \(index): '\(book.title)' has \(book.totalPages) pages")
             }
-            books = loadedBooks
-            applyFiltering()
-            LoggingService.shared.debug("LibraryViewModel: Books updated, displayBooks count: \(displayBooks.count)")
+            let filteredBooks = applyFiltering(to: loadedBooks, filter: selectedFilter)
+            viewState = .loaded(filteredBooks)
+            LoggingService.shared.debug("LibraryViewModel: Books loaded and filtered, displayBooks count: \(displayBooks.count)")
             for (index, book) in displayBooks.enumerated() {
                 LoggingService.shared.debug("LibraryViewModel: Display book \(index): '\(book.title)' has \(book.totalPages) pages")
             }
         } catch {
             LoggingService.shared.error("LibraryViewModel: Failed to load books: \(error)")
+            viewState = .error("Could not load your book library. Please check your connection and try again.")
             errorAlert = ErrorAlert(
                 title: "Failed to Load Books",
                 message: "Could not load your book library. Please check your connection and try again."
@@ -76,27 +79,6 @@ final class LibraryViewModel {
         }
     }
 
-    @MainActor
-    func searchBooks(query: String) async {
-        searchQuery = query
-        isSearching = !query.isEmpty
-
-        if query.isEmpty {
-            applyFiltering()
-            return
-        }
-
-        do {
-            filteredBooks = try await bookRepository.searchBooks(query: query, userId: userId)
-        } catch {
-            LoggingService.shared.error("LibraryViewModel: Failed to search books: \(error)")
-            filteredBooks = []
-            errorAlert = ErrorAlert(
-                title: "Search Failed",
-                message: "Could not search books. Please try again."
-            )
-        }
-    }
 
     // MARK: - Book Management
 
@@ -104,8 +86,13 @@ final class LibraryViewModel {
     func deleteBook(_ book: AppBook) async {
         do {
             try await bookRepository.deleteBook(book.id)
-            books.removeAll { $0.id == book.id }
-            applyFiltering()
+
+            // Update the state by removing the book and reapplying filter
+            if case .loaded(let books) = viewState {
+                let updatedBooks = books.filter { $0.id != book.id }
+                let filteredBooks = applyFiltering(to: updatedBooks, filter: selectedFilter)
+                viewState = .loaded(filteredBooks)
+            }
         } catch {
             LoggingService.shared.error("LibraryViewModel: Failed to delete book: \(error)")
             errorAlert = ErrorAlert(
@@ -127,26 +114,39 @@ final class LibraryViewModel {
 
     func setFilter(_ filter: BookFilter) {
         selectedFilter = filter
-        applyFiltering()
+
+        // Reapply filter to current books if loaded
+        if case .loaded(let books) = viewState {
+            let filteredBooks = applyFiltering(to: books, filter: filter)
+            viewState = .loaded(filteredBooks)
+        }
     }
 
-    private func applyFiltering() {
-        if isSearching { return } // Don't filter when searching
-
-        switch selectedFilter {
+    private func applyFiltering(to books: [AppBook], filter: BookFilter) -> [AppBook] {
+        switch filter {
         case .all:
-            filteredBooks = books
+            return books
         case .local:
-            filteredBooks = books.filter { $0.isLocal }
+            return books.filter { $0.isLocal }
         case .groupLibrary:
-            filteredBooks = books.filter { !$0.isLocal }
+            return books.filter { !$0.isLocal }
         }
     }
 
     // MARK: - Computed Properties
 
     var displayBooks: [AppBook] {
-        isSearching ? filteredBooks : books
+        switch viewState {
+        case .loaded(let books):
+            return books
+        case .loading, .error:
+            return []
+        }
+    }
+
+    var isLoading: Bool {
+        if case .loading = viewState { return true }
+        return false
     }
 
     var bookCountText: String {
@@ -159,17 +159,24 @@ final class LibraryViewModel {
     }
 
     var emptyStateMessage: String {
-        if isSearching {
-            return "No books found matching '\(searchQuery)'"
-        } else {
-            switch selectedFilter {
-            case .all:
-                return "No books yet. Upload your first book to get started!"
-            case .local:
-                return "No uploaded books yet. Use the camera or photo library to add books."
-            case .groupLibrary:
-                return "No group library books available yet."
+        switch viewState {
+        case .error(let message):
+            return message
+        case .loaded(let books):
+            if books.isEmpty {
+                switch selectedFilter {
+                case .all:
+                    return "No books yet. Upload your first book to get started!"
+                case .local:
+                    return "No uploaded books yet. Use the camera or photo library to add books."
+                case .groupLibrary:
+                    return "No group library books available yet."
+                }
+            } else {
+                return ""
             }
+        case .loading:
+            return "Loading your books..."
         }
     }
 

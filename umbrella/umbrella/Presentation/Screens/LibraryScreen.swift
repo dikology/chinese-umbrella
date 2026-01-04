@@ -12,6 +12,7 @@ import AuthenticationServices
 struct LibraryScreen: View {
     @Environment(\.colorScheme) private var colorScheme
     let viewModel: LibraryViewModel
+    let diContainer: DIContainer
     @State private var showUploadSheet = false
     @State private var showEditSheet = false
     @State private var bookToEdit: AppBook?
@@ -22,122 +23,33 @@ struct LibraryScreen: View {
         AdaptiveColors(colorScheme: colorScheme)
     }
 
-    init(viewModel: LibraryViewModel) {
+    init(viewModel: LibraryViewModel, diContainer: DIContainer) {
         self.viewModel = viewModel
+        self.diContainer = diContainer
     }
 
     // MARK: - Header Section
     private var headerSection: some View {
-        VStack(spacing: 16) {
-            // Title and upload button
-            HStack {
-                Text("Library")
-                    .titleStyle()
-
-                Spacer()
-
-                Button {
-                    showUploadSheet = true
-                } label: {
-                    Image(systemName: "plus")
-                        .font(.title2)
-                        .foregroundColor(colors.primary)
-                }
-            }
-
-            // Search bar (Phase 3+)
-//            HStack {
-//                Image(systemName: "magnifyingglass")
-//                    .foregroundColor(colors.textSecondary)
-//
-//                TextField("Search books...", text: $searchText)
-//                    .adaptiveTextFieldStyle()
-//                    .onChange(of: searchText) { oldValue, newValue in
-//                        Task {
-//                            await viewModel.searchBooks(query: newValue)
-//                        }
-//                    }
-//
-//                if !searchText.isEmpty {
-//                    Button {
-//                        searchText = ""
-//                        Task {
-//                            await viewModel.searchBooks(query: "")
-//                        }
-//                    } label: {
-//                        Image(systemName: "xmark.circle.fill")
-//                            .foregroundColor(colors.textSecondary)
-//                    }
-//                }
-//            }
-//            .padding(12)
-//            .background(colors.searchBackground)
-//            .cornerRadius(8)
-
-            // Filter pills
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(BookFilter.allCases, id: \.self) { filter in
-                        FilterPill(
-                            filter: filter,
-                            isSelected: viewModel.selectedFilter == filter,
-                            action: {
-                                viewModel.setFilter(filter)
-                            }
-                        )
-                    }
-                }
-                .padding(.horizontal, 4)
-            }
-        }
-        .padding(.horizontal)
-        .padding(.top, 20)
-        .padding(.bottom, 16)
+        LibraryHeader(
+            onAddBook: { showUploadSheet = true },
+            searchText: $searchText,
+            selectedFilter: viewModel.selectedFilter,
+            onFilterChange: viewModel.setFilter
+        )
     }
 
     // MARK: - Main Content
     private var mainContent: some View {
         VStack(spacing: 0) {
-            // Book count
-            HStack {
-                Text(viewModel.bookCountText)
-                    .bodySecondaryStyle()
-                Spacer()
-            }
-            .padding(.horizontal)
+            BookCountHeader(bookCountText: viewModel.bookCountText)
 
-            // Book list or empty state
             if viewModel.hasBooks {
-                List(viewModel.displayBooks) { book in
-                    BookListRow(
-                        book: book,
-                        onSelect: {
-                            LoggingService.shared.debug("LibraryScreen: Book selected: '\(book.title)' with \(book.totalPages) pages")
-                            selectedBook = book
-                        }
-                    )
-                    .listRowInsets(EdgeInsets())
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-                    .swipeActions(edge: .trailing) {
-                        Button(role: .destructive, action: {
-                            viewModel.showDeleteConfirmation(for: book)
-                        }) {
-                            Label("Delete", systemImage: "trash")
-                        }
-                        Button(action: {
-                            LoggingService.shared.debug("LibraryScreen: Setting bookToEdit to book with title: \(book.title), pages: \(book.totalPages)")
-                            bookToEdit = book
-                            showEditSheet = true
-                        }) {
-                            Label("Edit", systemImage: "pencil")
-                        }
-                        .tint(colors.primary)
-                    }
-                }
-                .listStyle(.plain)
-                .padding(.horizontal)
-                .padding(.vertical, 8)
+                BookListView(
+                    books: viewModel.displayBooks,
+                    onSelect: { selectedBook = $0 },
+                    onEdit: { bookToEdit = $0; showEditSheet = true },
+                    onDelete: viewModel.showDeleteConfirmation
+                )
             } else {
                 EmptyLibraryView(message: viewModel.emptyStateMessage)
             }
@@ -151,7 +63,7 @@ struct LibraryScreen: View {
         Group {
             if let userId = viewModel.currentUserId {
                 BookUploadScreen(
-                    bookUploadUseCase: DIContainer.bookUploadUseCase,
+                    bookUploadUseCase: diContainer.bookUploadUseCase,
                     userId: userId,
                     onBookUploaded: {
                         Task {
@@ -170,7 +82,7 @@ struct LibraryScreen: View {
             if let book = bookToEdit {
                 EditBookScreen(
                     book: book,
-                    editBookUseCase: DIContainer.editBookUseCase,
+                    editBookUseCase: diContainer.editBookUseCase,
                     onBookEdited: {
                         LoggingService.shared.debug("LibraryScreen: onBookEdited callback triggered")
                         Task {
@@ -241,145 +153,156 @@ struct LibraryScreen: View {
                 }
             }
             .navigationDestination(item: $selectedBook) { book in
-                ReadingScreen(book: book, userId: viewModel.currentUserId ?? UUID())
-                    .environment(\.managedObjectContext, DIContainer.coreDataManager.viewContext)
+                ReadingScreen(book: book, userId: viewModel.currentUserId ?? UUID(), diContainer: diContainer)
+                    .environment(\.managedObjectContext, diContainer.coreDataManager.viewContext)
             }
         }
     }
 }
 
-/// Filter pill component
-struct FilterPill: View {
+/// Book count header component
+private struct BookCountHeader: View {
+    let bookCountText: String
+
+    var body: some View {
+        HStack {
+            Text(bookCountText)
+                .bodySecondaryStyle()
+            Spacer()
+        }
+        .padding(.horizontal)
+    }
+}
+
+/// Book list view component with swipe actions
+private struct BookListView: View {
     @Environment(\.colorScheme) private var colorScheme
 
-    let filter: BookFilter
-    let isSelected: Bool
-    let action: () -> Void
+    let books: [AppBook]
+    let onSelect: (AppBook) -> Void
+    let onEdit: (AppBook) -> Void
+    let onDelete: (AppBook) -> Void
 
     private var colors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
     }
 
     var body: some View {
-        Button(action: action) {
-            HStack(spacing: 6) {
-                Image(systemName: filter.icon)
-                    .font(.caption)
-                Text(filter.rawValue)
-                    .font(.bodySecondary)
+        List(books) { book in
+            BookListRow(
+                book: book,
+                onSelect: {
+                    LoggingService.shared.debug("LibraryScreen: Book selected: '\(book.title)' with \(book.totalPages) pages")
+                    onSelect(book)
+                }
+            )
+            .listRowInsets(EdgeInsets())
+            .listRowSeparator(.hidden)
+            .listRowBackground(Color.clear)
+            .swipeActions(edge: .trailing) {
+                Button(role: .destructive, action: {
+                    onDelete(book)
+                }) {
+                    Label("Delete", systemImage: "trash")
+                }
+                Button(action: {
+                    LoggingService.shared.debug("LibraryScreen: Setting bookToEdit to book with title: \(book.title), pages: \(book.totalPages)")
+                    onEdit(book)
+                }) {
+                    Label("Edit", systemImage: "pencil")
+                }
+                .tint(colors.primary)
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
-            .background(isSelected ? colors.primary : colors.filterInactive)
-            .foregroundColor(isSelected ? .white : colors.textPrimary)
-            .cornerRadius(20)
         }
+        .listStyle(.plain)
+        .padding(.horizontal)
+        .padding(.vertical, 8)
     }
 }
 
-/// Book list row component
-struct BookListRow: View {
+/// Library header component containing title, add button, search, and filters
+private struct LibraryHeader: View {
     @Environment(\.colorScheme) private var colorScheme
-
-    let book: AppBook
-    let onSelect: () -> Void
+    let onAddBook: () -> Void
+    @Binding var searchText: String
+    let selectedFilter: BookFilter
+    let onFilterChange: (BookFilter) -> Void
 
     private var colors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
     }
 
     var body: some View {
-        Button(action: onSelect) {
-            CardContainer {
-                HStack(spacing: 16) {
-                    // Book cover placeholder
-//                    ZStack {
-//                        RoundedRectangle(cornerRadius: 8)
-//                            .fill(colors.filterInactive)
-//                            .frame(width: 60, height: 80)
-//
-//                        Image(systemName: book.isLocal ? "camera" : "globe")
-//                            .font(.title2)
-//                            .foregroundColor(colors.textSecondary)
-//                    }
+        VStack(spacing: 16) {
+            // Title and upload button
+            HStack {
+                Text("Library")
+                    .titleStyle()
 
-                    // Book info
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(book.title)
-                            .font(.subheading)
-                            .lineLimit(1)
-                            .foregroundColor(colors.textPrimary)
+                Spacer()
 
-                        if let author = book.author {
-                            Text(author)
-                                .bodySecondaryStyle()
-                                .lineLimit(1)
-                        }
-
-                        HStack(spacing: 12) {
-                            Text("\(book.totalPages) pages")
-                                .captionStyle()
-
-//                            if book.isCompleted {
-//                                Image(systemName: "checkmark.circle.fill")
-//                                    .foregroundColor(colors.success)
-//                                    .font(.caption)
-//                            } else {
-//                                Text("\(Int(book.readingProgress * 100))% read")
-//                                    .captionStyle()
-//                            }
-                        }
-                    }
-
-                    Spacer()
-
-                    // Progress indicator
-//                    VStack {
-//                        Spacer()
-//                        CircularProgressIndicator(progress: book.readingProgress, size: 40)
-//                        Spacer()
-//                    }
+                Button(action: onAddBook) {
+                    Image(systemName: "plus")
+                        .font(.title2)
+                        .foregroundColor(colors.primary)
                 }
             }
+
+            // Search bar (Phase 3+)
+//            HStack {
+//                Image(systemName: "magnifyingglass")
+//                    .foregroundColor(colors.textSecondary)
+//
+//                TextField("Search books...", text: $searchText)
+//                    .adaptiveTextFieldStyle()
+//                    .onChange(of: searchText) { oldValue, newValue in
+//                        Task {
+//                            await viewModel.searchBooks(query: newValue)
+//                        }
+//                    }
+//
+//                if !searchText.isEmpty {
+//                    Button {
+//                        searchText = ""
+//                        Task {
+//                            await viewModel.searchBooks(query: "")
+//                        }
+//                    } label: {
+//                        Image(systemName: "xmark.circle.fill")
+//                            .foregroundColor(colors.textSecondary)
+//                    }
+//                }
+//            }
+//            .padding(12)
+//            .background(colors.searchBackground)
+//            .cornerRadius(8)
+
+            // Filter pills
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(BookFilter.allCases, id: \.self) { filter in
+                        FilterPill(
+                            filter: filter,
+                            isSelected: selectedFilter == filter,
+                            action: { onFilterChange(filter) }
+                        )
+                    }
+                }
+                .padding(.horizontal, 4)
+            }
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal)
+        .padding(.top, 20)
+        .padding(.bottom, 16)
     }
 }
 
 
-/// Empty library state
-struct EmptyLibraryView: View {
-    @Environment(\.colorScheme) private var colorScheme
 
-    let message: String
 
-    private var colors: AdaptiveColors {
-        AdaptiveColors(colorScheme: colorScheme)
-    }
-
-    var body: some View {
-        VStack(spacing: 20) {
-            Spacer()
-
-            Image(systemName: "books.vertical")
-                .font(.system(size: 64))
-                .foregroundColor(colors.textSecondary.opacity(0.5))
-
-            Text("No Books Yet")
-                .font(.heading)
-                .foregroundColor(colors.textSecondary)
-
-            Text(message)
-                .bodySecondaryStyle()
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 40)
-
-            Spacer()
-        }
-    }
-}
 
 #Preview {
-    LibraryScreen(viewModel: LibraryViewModel.preview)
+    LibraryScreen(viewModel: LibraryViewModel.preview, diContainer: DIContainer.preview)
+        .environment(\.managedObjectContext, DIContainer.preview.coreDataManager.viewContext)
 }
 
