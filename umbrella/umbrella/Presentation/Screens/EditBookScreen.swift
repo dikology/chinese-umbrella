@@ -128,6 +128,7 @@ struct EditBookScreen: View {
                 }
                 .padding()
             }
+            .loadingOverlay(isPresented: viewModel.isLoadingExistingPages, message: "Loading existing pages...")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {

@@ -563,7 +563,7 @@ func deleteBook(_ book: AppBook) async {
 
 ---
 
-#### Issue: Loading States Not Visible -- 04.01.2026
+#### Issue: Loading States Not Visible
 **Problem:** Many async operations have `isLoading` flags but don't show clear UI feedback.
 
 **Recommended:**
