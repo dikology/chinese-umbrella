@@ -229,9 +229,10 @@ private struct MultiPageContentView: View {
             }
             .id(scrollViewID)
             .onChange(of: viewModel.currentPageIndex) { oldIndex, newIndex in
-                // Only scroll programmatically if user used header navigation
-                if oldIndex != newIndex {
-                    LoggingService.shared.reading("🔄 ViewModel page index changed: \(oldIndex) -> \(newIndex), triggering scroll", level: .info)
+                // Only scroll programmatically if we're not already at that page
+                // This prevents feedback loops from scroll-based navigation
+                if oldIndex != newIndex && currentVisiblePage != newIndex {
+                    LoggingService.shared.reading("🔄 ViewModel page index changed: \(oldIndex) -> \(newIndex), triggering programmatic scroll", level: .info)
                     isProgrammaticScroll = true
                     currentVisiblePage = newIndex
                     
@@ -245,6 +246,8 @@ private struct MultiPageContentView: View {
                         isProgrammaticScroll = false
                         LoggingService.shared.reading("✅ Programmatic scroll completed", level: .debug)
                     }
+                } else if currentVisiblePage == newIndex {
+                    LoggingService.shared.reading("⏭️ Skipping scroll: already at page \(newIndex)", level: .debug)
                 }
             }
             .onAppear {
@@ -273,6 +276,7 @@ private struct SinglePageContentView: View {
     
     @State private var pageContent: PageContent?
     @State private var isLoading = false
+    @State private var hasLoaded = false
     
     private var colors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
@@ -307,7 +311,10 @@ private struct SinglePageContentView: View {
             }
         }
         .task {
-            await loadPage()
+            // Only load if not already loaded
+            if !hasLoaded {
+                await loadPage()
+            }
         }
     }
     
@@ -320,7 +327,10 @@ private struct SinglePageContentView: View {
         
         LoggingService.shared.reading("🔄 SinglePageContentView loading page \(pageIndex)", level: .debug)
         isLoading = true
-        defer { isLoading = false }
+        defer { 
+            isLoading = false
+            hasLoaded = true
+        }
         
         let page = book.pages[pageIndex]
         

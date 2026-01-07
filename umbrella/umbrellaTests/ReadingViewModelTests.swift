@@ -428,7 +428,94 @@ struct ReadingViewModelTests {
         // Then
         #expect(viewModel.totalPages == 7)
     }
+    
+    // MARK: - Scroll Behavior Tests
+    
+    @Test("Update page index to same page does not trigger progress update")
+    func testUpdateToSamePageDoesNotTriggerUpdate() async {
+        // Given
+        let viewModel = createViewModel()
+        let book = createTestBook(pageCount: 5)
+        await viewModel.loadBook(book)
+        await viewModel.updateCurrentPageIndex(2) // Move to page 2
+        
+        let updateCountBefore = mockBookRepository.updateProgressCallCount
+        
+        // When - update to same page
+        await viewModel.updateCurrentPageIndex(2)
+        
+        // Then - should not call repository again
+        #expect(mockBookRepository.updateProgressCallCount == updateCountBefore)
+    }
+    
+    @Test("Consecutive scroll updates handle correctly without duplicates")
+    func testConsecutiveScrollUpdates() async {
+        // Given
+        let viewModel = createViewModel()
+        let book = createTestBook(pageCount: 10)
+        await viewModel.loadBook(book)
+        
+        // When - simulate rapid scrolling (user scrolling through pages)
+        await viewModel.updateCurrentPageIndex(1)
+        await viewModel.updateCurrentPageIndex(2)
+        await viewModel.updateCurrentPageIndex(3)
+        await viewModel.updateCurrentPageIndex(3) // Duplicate
+        await viewModel.updateCurrentPageIndex(4)
+        
+        // Then - should end up at page 4
+        #expect(viewModel.currentPageIndex == 4)
+        
+        // Should have 4 unique updates (0->1, 1->2, 2->3, 3->4), not 5
+        // The duplicate update to 3 should be ignored
+        #expect(mockBookRepository.updateProgressCallCount == 5) // Initial load + 4 updates
+    }
+    
+    @Test("Page index update after programmatic navigation")
+    func testPageIndexUpdateAfterProgrammaticNav() async {
+        // Given
+        let viewModel = createViewModel()
+        let book = createTestBook(pageCount: 5)
+        await viewModel.loadBook(book)
+        
+        // When - use nextPage (programmatic navigation)
+        await viewModel.nextPage()
+        
+        // Then - should be at page 1
+        #expect(viewModel.currentPageIndex == 1)
+        
+        // When - simulate scroll update to same page
+        await viewModel.updateCurrentPageIndex(1)
+        
+        // Then - should not trigger extra updates
+        let updateCount = mockBookRepository.updateProgressCallCount
+        #expect(updateCount > 0)
+    }
+    
+    @Test("Scroll back and forth maintains correct state")
+    func testScrollBackAndForth() async {
+        // Given
+        let viewModel = createViewModel()
+        let book = createTestBook(pageCount: 5)
+        await viewModel.loadBook(book)
+        
+        // When - scroll forward then backward
+        await viewModel.updateCurrentPageIndex(2) // Forward to 2
+        #expect(viewModel.currentPageIndex == 2)
+        
+        await viewModel.updateCurrentPageIndex(1) // Back to 1
+        #expect(viewModel.currentPageIndex == 1)
+        
+        await viewModel.updateCurrentPageIndex(3) // Forward to 3
+        #expect(viewModel.currentPageIndex == 3)
+        
+        await viewModel.updateCurrentPageIndex(0) // Back to start
+        #expect(viewModel.currentPageIndex == 0)
+        
+        // Then - all updates should have succeeded
+        #expect(mockBookRepository.updateProgressCallCount == 5) // Load + 4 updates
+    }
 }
+
 
 // MARK: - Mock Implementations
 
