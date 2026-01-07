@@ -141,6 +141,7 @@ private struct MultiPageContentView: View {
     @State private var currentVisiblePage: Int = 0
     @State private var isProgrammaticScroll: Bool = false
     @State private var pageChangeTask: Task<Void, Never>?
+    @State private var programmaticScrollResetTask: Task<Void, Never>?
     
     private var colors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
@@ -175,20 +176,31 @@ private struct MultiPageContentView: View {
                                 
                                 // Only update current page if this is a user scroll (not programmatic)
                                 if !isProgrammaticScroll {
-                                    // Debounce page changes to avoid rapid updates
+                                    // Cancel any pending page change task
                                     pageChangeTask?.cancel()
-                                    pageChangeTask = Task {
-                                        // Wait a bit to see if user is still scrolling
-                                        try? await Task.sleep(nanoseconds: 300_000_000) // 0.3 seconds
-                                        
-                                        guard !Task.isCancelled else { return }
-                                        
-                                        // Update current page when it becomes visible via user scroll
-                                        if pageIndex != currentVisiblePage {
-                                            LoggingService.shared.reading("📍 Updating current page from \(currentVisiblePage) to \(pageIndex) (user scroll)", level: .info)
-                                            currentVisiblePage = pageIndex
-                                            onPageChange(pageIndex)
+                                    
+                                    // Only update if this page is close to current visible page (prevents jumps)
+                                    let distance = abs(pageIndex - currentVisiblePage)
+                                    if distance <= 2 {
+                                        // Debounce page changes to avoid rapid updates
+                                        pageChangeTask = Task {
+                                            // Wait to see if user is still scrolling
+                                            try? await Task.sleep(nanoseconds: 200_000_000) // 0.2 seconds
+                                            
+                                            guard !Task.isCancelled else { 
+                                                LoggingService.shared.reading("⏭️ Page change task cancelled for page \(pageIndex)", level: .debug)
+                                                return
+                                            }
+                                            
+                                            // Update current page when it becomes visible via user scroll
+                                            if pageIndex != currentVisiblePage {
+                                                LoggingService.shared.reading("📍 Updating current page from \(currentVisiblePage) to \(pageIndex) (user scroll)", level: .info)
+                                                currentVisiblePage = pageIndex
+                                                onPageChange(pageIndex)
+                                            }
                                         }
+                                    } else {
+                                        LoggingService.shared.reading("⚠️ Ignoring page \(pageIndex) appear - too far from current page \(currentVisiblePage)", level: .debug)
                                     }
                                 }
                                 
@@ -204,6 +216,12 @@ private struct MultiPageContentView: View {
                             .onDisappear {
                                 LoggingService.shared.reading("👋 Page \(pageIndex) disappeared", level: .debug)
                                 visiblePageIndices.remove(pageIndex)
+                                
+                                // If user is actively scrolling away from a page, clear programmatic flag
+                                if !isProgrammaticScroll && pageIndex == currentVisiblePage {
+                                    // User scrolled away from current page, allow natural tracking
+                                    pageChangeTask?.cancel()
+                                }
                             }
                             
                             // Page separator
@@ -233,6 +251,11 @@ private struct MultiPageContentView: View {
                 // This prevents feedback loops from scroll-based navigation
                 if oldIndex != newIndex && currentVisiblePage != newIndex {
                     LoggingService.shared.reading("🔄 ViewModel page index changed: \(oldIndex) -> \(newIndex), triggering programmatic scroll", level: .info)
+                    
+                    // Cancel any pending page change tasks
+                    pageChangeTask?.cancel()
+                    programmaticScrollResetTask?.cancel()
+                    
                     isProgrammaticScroll = true
                     currentVisiblePage = newIndex
                     
@@ -241,10 +264,14 @@ private struct MultiPageContentView: View {
                     }
                     
                     // Reset programmatic scroll flag after animation completes
-                    Task {
-                        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 seconds
+                    // Use a shorter timeout to prevent getting stuck
+                    programmaticScrollResetTask = Task { @MainActor in
+                        try? await Task.sleep(nanoseconds: 400_000_000) // 0.4 seconds
+                        
+                        guard !Task.isCancelled else { return }
+                        
                         isProgrammaticScroll = false
-                        LoggingService.shared.reading("✅ Programmatic scroll completed", level: .debug)
+                        LoggingService.shared.reading("✅ Programmatic scroll completed, user control restored", level: .debug)
                     }
                 } else if currentVisiblePage == newIndex {
                     LoggingService.shared.reading("⏭️ Skipping scroll: already at page \(newIndex)", level: .debug)
@@ -254,6 +281,16 @@ private struct MultiPageContentView: View {
                 // Initialize current visible page
                 currentVisiblePage = viewModel.currentPageIndex
                 LoggingService.shared.reading("🚀 MultiPageContentView appeared, starting at page \(currentVisiblePage)", level: .info)
+                
+                // Safety: Reset programmatic scroll flag after a reasonable time
+                // This prevents getting permanently stuck if something goes wrong
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
+                    if isProgrammaticScroll {
+                        LoggingService.shared.reading("⚠️ Safety reset: isProgrammaticScroll was stuck, resetting", level: .info)
+                        isProgrammaticScroll = false
+                    }
+                }
             }
         }
     }

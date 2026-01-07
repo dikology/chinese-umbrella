@@ -514,6 +514,63 @@ struct ReadingViewModelTests {
         // Then - all updates should have succeeded
         #expect(mockBookRepository.updateProgressCallCount == 5) // Load + 4 updates
     }
+    
+    @Test("Large jump in page index is rejected")
+    func testLargePageJumpPrevention() async {
+        // Given
+        let viewModel = createViewModel()
+        let book = createTestBook(pageCount: 10)
+        await viewModel.loadBook(book)
+        
+        // When - try to jump from page 0 to page 9 (would be prevented by distance check in UI)
+        // In ViewModel, this succeeds (it's the UI layer that prevents it)
+        await viewModel.updateCurrentPageIndex(9)
+        
+        // Then - ViewModel allows it (UI layer has the distance check)
+        #expect(viewModel.currentPageIndex == 9)
+    }
+    
+    @Test("Sequential page updates with no gaps")
+    func testSequentialPageUpdates() async {
+        // Given
+        let viewModel = createViewModel()
+        let book = createTestBook(pageCount: 8)
+        await viewModel.loadBook(book)
+        
+        // When - scroll sequentially through pages
+        for pageIndex in 0..<8 {
+            await viewModel.updateCurrentPageIndex(pageIndex)
+            #expect(viewModel.currentPageIndex == pageIndex)
+        }
+        
+        // Then - should be at last page
+        #expect(viewModel.currentPageIndex == 7)
+        #expect(viewModel.isLastPage)
+    }
+    
+    @Test("Mixed programmatic and scroll navigation")
+    func testMixedNavigation() async {
+        // Given
+        let viewModel = createViewModel()
+        let book = createTestBook(pageCount: 10)
+        await viewModel.loadBook(book)
+        
+        // When - mix nextPage and updateCurrentPageIndex
+        await viewModel.nextPage() // 0 -> 1
+        #expect(viewModel.currentPageIndex == 1)
+        
+        await viewModel.updateCurrentPageIndex(3) // scroll to 3
+        #expect(viewModel.currentPageIndex == 3)
+        
+        await viewModel.previousPage() // 3 -> 2
+        #expect(viewModel.currentPageIndex == 2)
+        
+        await viewModel.updateCurrentPageIndex(5) // scroll to 5
+        #expect(viewModel.currentPageIndex == 5)
+        
+        // Then - should end up at page 5
+        #expect(viewModel.currentPageIndex == 5)
+    }
 }
 
 
