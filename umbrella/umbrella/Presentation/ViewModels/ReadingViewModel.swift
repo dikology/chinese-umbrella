@@ -68,9 +68,11 @@ final class ReadingViewModel {
     /// Load a specific page by index
     func loadPage(_ index: Int) async throws {
         guard let book = currentBook, book.pages.indices.contains(index) else {
+            LoggingService.shared.reading("❌ Invalid page index: \(index)", level: .error)
             throw ReadingError.invalidPageIndex
         }
 
+        LoggingService.shared.reading("📖 Loading page \(index)", level: .info)
         currentPageIndex = index
         let page = book.pages[index]
         currentPage = page
@@ -78,10 +80,13 @@ final class ReadingViewModel {
 
         // Load or segment words for this page
         if page.words.isEmpty {
+            LoggingService.shared.reading("✂️ Segmenting text for page \(index) (\(pageText.count) chars)", level: .debug)
             // If no pre-segmented words, perform segmentation
             segmentedWords = try await textSegmentationService.segmentWithPositions(text: pageText)
+            LoggingService.shared.reading("✅ Segmented into \(segmentedWords.count) words", level: .debug)
         } else {
             segmentedWords = page.words
+            LoggingService.shared.reading("✅ Using cached \(segmentedWords.count) words", level: .debug)
         }
 
         // Update marked words for this page
@@ -93,20 +98,30 @@ final class ReadingViewModel {
 
     /// Navigate to next page
     func nextPage() async {
-        guard let book = currentBook, currentPageIndex < book.totalPages - 1 else { return }
+        guard let book = currentBook, currentPageIndex < book.totalPages - 1 else {
+            LoggingService.shared.reading("⚠️ Cannot go to next page: at page \(currentPageIndex) of \(currentBook?.totalPages ?? 0)", level: .debug)
+            return
+        }
+        LoggingService.shared.reading("➡️ Navigating to next page: \(currentPageIndex) -> \(currentPageIndex + 1)", level: .info)
         do {
             try await loadPage(currentPageIndex + 1)
         } catch {
+            LoggingService.shared.reading("❌ Failed to load next page: \(error.localizedDescription)", level: .error)
             self.error = "Failed to load next page: \(error.localizedDescription)"
         }
     }
 
     /// Navigate to previous page
     func previousPage() async {
-        guard currentPageIndex > 0 else { return }
+        guard currentPageIndex > 0 else {
+            LoggingService.shared.reading("⚠️ Cannot go to previous page: at page 0", level: .debug)
+            return
+        }
+        LoggingService.shared.reading("⬅️ Navigating to previous page: \(currentPageIndex) -> \(currentPageIndex - 1)", level: .info)
         do {
             try await loadPage(currentPageIndex - 1)
         } catch {
+            LoggingService.shared.reading("❌ Failed to load previous page: \(error.localizedDescription)", level: .error)
             self.error = "Failed to load previous page: \(error.localizedDescription)"
         }
     }
@@ -174,6 +189,53 @@ final class ReadingViewModel {
     /// Check if a word is marked as difficult
     func isWordMarked(_ word: String) -> Bool {
         markedWordsThisSession.contains(word)
+    }
+    
+    /// Update current page index (for scroll-based navigation)
+    func updateCurrentPageIndex(_ index: Int) async {
+        guard let book = currentBook, book.pages.indices.contains(index) else {
+            LoggingService.shared.reading("⚠️ Cannot update page index to \(index): out of bounds", level: .default)
+            return
+        }
+        
+        // Only update if different
+        if currentPageIndex != index {
+            LoggingService.shared.reading("📍 Updating page index via scroll: \(currentPageIndex) -> \(index)", level: .info)
+            currentPageIndex = index
+            currentPage = book.pages[index]
+            await updateBookProgress()
+        }
+    }
+    
+    /// Prefetch a page for lazy loading
+    func prefetchPage(_ index: Int) async {
+        guard let book = currentBook, book.pages.indices.contains(index) else {
+            LoggingService.shared.reading("⚠️ Cannot prefetch page \(index): out of bounds", level: .debug)
+            return
+        }
+        
+        let page = book.pages[index]
+        
+        // If page doesn't have segmented words, prefetch them
+        if page.words.isEmpty {
+            LoggingService.shared.reading("⏳ Prefetching segmentation for page \(index)", level: .debug)
+            _ = try? await textSegmentationService.segmentWithPositions(text: page.extractedText)
+            LoggingService.shared.reading("✅ Prefetch completed for page \(index)", level: .debug)
+        } else {
+            LoggingService.shared.reading("⏭️ Page \(index) already segmented, skipping prefetch", level: .debug)
+        }
+    }
+    
+    /// Get segmented words for a given text (used by multi-page view)
+    func getSegmentedWords(for text: String) async -> [AppWordSegment] {
+        do {
+            let words = try await textSegmentationService.segmentWithPositions(text: text)
+            LoggingService.shared.reading("✂️ Segmented text into \(words.count) words", level: .debug)
+            return words
+        } catch {
+            LoggingService.shared.reading("❌ Failed to segment text: \(error)", level: .error)
+            return []
+        }
     }
 
     // MARK: - Private Methods
