@@ -122,7 +122,7 @@ struct PageGridView: View {
             }
         } message: {
             if let page = editingPageNumber {
-                Text("Change page number for page currently numbered \(page.pageNumber)")
+                Text("Current page number: \(page.pageNumber). Enter new page number. Pages will be reordered and renumbered sequentially after saving.")
             }
         }
     }
@@ -198,42 +198,78 @@ struct ExistingPageThumbnailCard: View {
     let page: ExistingPageItem
     let isEditing: Bool
     let onTap: (() -> Void)?
+    
+    @State private var loadedImage: UIImage?
 
     var body: some View {
         ZStack(alignment: .topTrailing) {
-            // Thumbnail placeholder (we don't have actual thumbnails for existing pages yet)
+            // Try to load the actual page image, fallback to placeholder
             ZStack {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.gray.opacity(0.2))
-                    .frame(height: 160)
+                if let loadedImage = loadedImage {
+                    Image(uiImage: loadedImage)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(height: 160)
+                        .clipped()
+                        .cornerRadius(8)
+                } else {
+                    RoundedRectangle(cornerRadius: 8)
+                        .fill(Color.gray.opacity(0.2))
+                        .frame(height: 160)
 
-                VStack(spacing: 8) {
-                    Image(systemName: "doc.text")
-                        .font(.system(size: 32))
-                        .foregroundColor(.gray)
+                    VStack(spacing: 8) {
+                        Image(systemName: "doc.text")
+                            .font(.system(size: 32))
+                            .foregroundColor(.gray)
 
-                    Text("Page \(page.pageNumber)")
-                        .font(.caption)
-                        .foregroundColor(.gray)
+                        Text("Page \(page.pageNumber)")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
                 }
             }
             .overlay(
                 RoundedRectangle(cornerRadius: 8)
                     .stroke(isEditing ? Color.blue : Color.blue.opacity(0.3), lineWidth: isEditing ? 2 : 1)
             )
-
-            // Edit indicator (shown in edit mode)
-            if isEditing {
-                Image(systemName: "pencil.circle.fill")
-                    .font(.system(size: 24))
-                    .foregroundColor(.blue)
-                    .background(Color.white)
-                    .clipShape(Circle())
-                    .padding(8)
+            
+            // Page number badge - ALWAYS show the current page number
+            ZStack {
+                Circle()
+                    .fill(Color.blue)
+                    .frame(width: 36, height: 36)
+                
+                Text("\(page.pageNumber)")
+                    .font(.caption.bold())
+                    .foregroundColor(.white)
             }
+            .padding(8)
         }
         .onTapGesture {
             onTap?()
+        }
+        .task {
+            // Load the image asynchronously
+            if let image = await loadImage(from: page.originalImagePath) {
+                loadedImage = image
+            }
+        }
+    }
+    
+    private func loadImage(from path: String) async -> UIImage? {
+        // Load image on background thread
+        let fullImage = await Task.detached {
+            return UIImage(contentsOfFile: path)
+        }.value
+
+        guard let fullImage = fullImage else {
+            return nil
+        }
+
+        // Resize image on main thread (UIKit operations need main thread)
+        return await MainActor.run {
+            let targetSize = CGSize(width: 120, height: 160)
+            return fullImage.resized(to: targetSize)
         }
     }
 }
