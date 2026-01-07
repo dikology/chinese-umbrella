@@ -10,11 +10,11 @@ import SwiftUI
 @testable import umbrella
 
 struct LibraryEditBookIntegrationTests {
-    private var mockBookRepository: MockBookRepository!
+    private var mockBookRepository: IntegrationMockBookRepository!
     private var mockEditBookUseCase: MockEditBookUseCase!
 
     init() {
-        mockBookRepository = MockBookRepository()
+        mockBookRepository = IntegrationMockBookRepository()
         mockEditBookUseCase = MockEditBookUseCase()
     }
 
@@ -253,8 +253,8 @@ struct LibraryEditBookIntegrationTests {
         // Create a real use case with mocked services
         let mockOCRService = MockOCRService()
         let mockImageProcessingService = MockImageProcessingService()
-        let mockTextSegmentationService = MockTextSegmentationService()
-        let mockBookRepository = MockBookRepository()
+        let mockTextSegmentationService = IntegrationMockTextSegmentationService()
+        let mockBookRepository = IntegrationMockBookRepository()
 
         let useCase = DefaultEditBookUseCase(
             ocrService: mockOCRService,
@@ -425,7 +425,7 @@ private class MockEditBookUseCase: EditBookUseCase {
     }
 }
 
-private class MockBookRepository: BookRepository {
+private class IntegrationMockBookRepository: BookRepository {
     var books: [AppBook] = []
 
     func saveBook(_ book: AppBook, userId: UUID) async throws -> AppBook {
@@ -539,7 +539,7 @@ private class MockImageProcessingService: ImageProcessingService {
     }
 }
 
-private class MockTextSegmentationService: TextSegmentationService {
+private class IntegrationMockTextSegmentationService: TextSegmentationService {
     func segment(text: String) async throws -> [String] {
         return ["mock"]
     }

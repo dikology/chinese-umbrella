@@ -21,6 +21,7 @@ struct EditBookViewModelTests {
     // MARK: - Initialization Tests
 
     @Test("ViewModel initializes correctly with valid book")
+    @MainActor
     func testInitializationWithValidBook() {
         // Given
         let book = createTestBook(title: "Test Book", author: "Test Author", pageCount: 5)
@@ -39,6 +40,7 @@ struct EditBookViewModelTests {
     }
 
     @Test("ViewModel initializes correctly with book having no author")
+    @MainActor
     func testInitializationWithBookWithoutAuthor() {
         // Given
         let book = createTestBook(title: "Test Book", author: nil, pageCount: 3)
@@ -53,6 +55,7 @@ struct EditBookViewModelTests {
     }
 
     @Test("ViewModel initializes correctly with book having no pages")
+    @MainActor
     func testInitializationWithEmptyBook() {
         // Given
         let book = createTestBook(title: "Empty Book", pageCount: 0)
@@ -69,6 +72,7 @@ struct EditBookViewModelTests {
     // MARK: - Computed Properties Tests
 
     @Test("Computed properties update correctly when images are added")
+    @MainActor
     func testComputedPropertiesWithImages() {
         // Given
         let book = createTestBook(pageCount: 2)
@@ -90,6 +94,7 @@ struct EditBookViewModelTests {
     }
 
     @Test("canEdit returns false when no images selected")
+    @MainActor
     func testCanEditWithoutImages() {
         // Given
         let book = createTestBook(pageCount: 1)
@@ -100,6 +105,7 @@ struct EditBookViewModelTests {
     }
 
     @Test("canEdit returns false when title is empty")
+    @MainActor
     func testCanEditWithEmptyTitle() {
         // Given
         let book = createTestBook(pageCount: 1)
@@ -116,6 +122,7 @@ struct EditBookViewModelTests {
     // MARK: - Edit Book Tests
 
     @Test("editBook succeeds with valid data")
+    @MainActor
     func testEditBookSuccess() async {
         // Given
         let book = createTestBook(pageCount: 2)
@@ -137,6 +144,7 @@ struct EditBookViewModelTests {
     }
 
     @Test("editBook fails when no images selected")
+    @MainActor
     func testEditBookFailsWithoutImages() async {
         // Given
         let book = createTestBook(pageCount: 2)
@@ -153,6 +161,7 @@ struct EditBookViewModelTests {
     }
 
     @Test("editBook fails when title is empty")
+    @MainActor
     func testEditBookFailsWithEmptyTitle() async {
         // Given
         let book = createTestBook(pageCount: 2)
@@ -170,6 +179,7 @@ struct EditBookViewModelTests {
     }
 
     @Test("editBook handles use case error")
+    @MainActor
     func testEditBookHandlesUseCaseError() async {
         // Given
         let book = createTestBook(pageCount: 2)
@@ -191,6 +201,7 @@ struct EditBookViewModelTests {
     // MARK: - Edge Cases
 
     @Test("ViewModel handles book with very long title")
+    @MainActor
     func testLongTitleHandling() {
         // Given
         let longTitle = String(repeating: "A", count: 1000)
@@ -203,6 +214,7 @@ struct EditBookViewModelTests {
     }
 
     @Test("ViewModel handles book with empty title")
+    @MainActor
     func testEmptyTitleHandling() {
         // Given
         let book = createTestBook(title: "", pageCount: 1)
@@ -214,6 +226,7 @@ struct EditBookViewModelTests {
     }
 
     @Test("ViewModel handles book with nil author")
+    @MainActor
     func testNilAuthorHandling() {
         // Given
         let book = createTestBook(title: "Test Book", author: nil, pageCount: 1)
@@ -225,6 +238,7 @@ struct EditBookViewModelTests {
     }
 
     @Test("ViewModel handles book with special characters in title")
+    @MainActor
     func testSpecialCharactersInTitle() {
         // Given
         let specialTitle = "书名: 测试 (Test) - 123 !@#$%^&*()"
@@ -236,6 +250,7 @@ struct EditBookViewModelTests {
     }
 
     @Test("ViewModel handles rapid image additions")
+    @MainActor
     func testRapidImageAdditions() {
         // Given
         let book = createTestBook(pageCount: 2)
@@ -252,6 +267,7 @@ struct EditBookViewModelTests {
     }
 
     @Test("ViewModel handles image removal")
+    @MainActor
     func testImageRemoval() {
         // Given
         let book = createTestBook(pageCount: 2)
@@ -365,6 +381,7 @@ private class MockEditBookUseCase: EditBookUseCase {
 extension EditBookViewModelTests {
 
     @Test("ViewModel loads existing pages correctly")
+    @MainActor
     func testLoadExistingPages() async {
         // Given
         let book = createTestBook(title: "Reorder Test Book", pageCount: 3)
@@ -466,6 +483,7 @@ extension EditBookViewModelTests {
     }
 
     @Test("savePageNumbers handles errors correctly")
+    @MainActor
     func testSavePageNumbers_handlesErrors() async {
         // Given
         let book = createTestBook(title: "Error Numbers Test", pageCount: 2)

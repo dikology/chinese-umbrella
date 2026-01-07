@@ -27,15 +27,15 @@ struct BookUploadUseCaseTests {
     private func createMockServices() -> (
         ocrService: MockOCRService,
         imageProcessingService: MockImageProcessingService,
-        textSegmentationService: MockTextSegmentationService,
+        textSegmentationService: BookUploadMockTextSegmentationService,
         bookMetadataService: MockBookMetadataService,
-        bookRepository: MockBookRepository
+        bookRepository: BookUploadMockBookRepository
     ) {
         let ocrService = MockOCRService()
         let imageProcessingService = MockImageProcessingService()
-        let textSegmentationService = MockTextSegmentationService()
+        let textSegmentationService = BookUploadMockTextSegmentationService()
         let bookMetadataService = MockBookMetadataService()
-        let bookRepository = MockBookRepository()
+        let bookRepository = BookUploadMockBookRepository()
 
         return (ocrService, imageProcessingService, textSegmentationService, bookMetadataService, bookRepository)
     }
@@ -359,7 +359,7 @@ private class MockImageProcessingService: ImageProcessingService {
     }
 }
 
-private class MockTextSegmentationService: TextSegmentationService {
+private class BookUploadMockTextSegmentationService: TextSegmentationService {
     var segmentResult: [String] = []
     var segmentError: Error?
     var segmentWithPositionsResult: [AppWordSegment] = []
@@ -430,7 +430,7 @@ private class MockBookMetadataService: BookMetadataService {
     }
 }
 
-private class MockBookRepository: BookRepository {
+private class BookUploadMockBookRepository: BookRepository {
     var saveResult: AppBook?
     var saveError: Error?
     var getResult: AppBook?
