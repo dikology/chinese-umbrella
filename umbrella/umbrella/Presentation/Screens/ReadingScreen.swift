@@ -12,7 +12,6 @@ struct ReadingScreen: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var viewModel: ReadingViewModel
     @State private var showingDictionaryPopup = false
-    @State private var scrollViewID = UUID()
 
     private let book: AppBook
     private let userId: UUID
@@ -38,14 +37,8 @@ struct ReadingScreen: View {
                     // Multi-page scrollable content
                     MultiPageContentView(
                         viewModel: viewModel,
-                        scrollViewID: scrollViewID,
                         onWordSelected: {
                             showingDictionaryPopup = true
-                        },
-                        onPageChange: { newPageIndex in
-                            Task {
-                                await viewModel.updateCurrentPageIndex(newPageIndex)
-                            }
                         }
                     )
                 }
@@ -89,17 +82,6 @@ struct ReadingScreen: View {
 
     private var readingHeader: some View {
         HStack {
-            Button(action: {
-                Task { 
-                    await viewModel.previousPage()
-                    scrollViewID = UUID() // Force scroll to top
-                }
-            }) {
-                Image(systemName: "chevron.left")
-                    .foregroundColor(viewModel.canGoPrevious ? colors.primary : colors.textSecondary)
-            }
-            .disabled(!viewModel.canGoPrevious)
-
             Spacer()
 
             VStack(spacing: 2) {
@@ -108,17 +90,6 @@ struct ReadingScreen: View {
             }
 
             Spacer()
-
-            Button(action: {
-                Task { 
-                    await viewModel.nextPage()
-                    scrollViewID = UUID() // Force scroll to top
-                }
-            }) {
-                Image(systemName: "chevron.right")
-                    .foregroundColor(viewModel.canGoNext ? colors.primary : colors.textSecondary)
-            }
-            .disabled(!viewModel.canGoNext)
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 12)
@@ -127,179 +98,159 @@ struct ReadingScreen: View {
 
 }
 
-// MARK: - Multi-Page Content View with Lazy Loading
+// MARK: - Multi-Page Content View with Pure Continuous Scroll
 private struct MultiPageContentView: View {
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     
     let viewModel: ReadingViewModel
-    let scrollViewID: UUID
     let onWordSelected: () -> Void
-    let onPageChange: (Int) -> Void
     
-    @State private var visiblePageIndices: Set<Int> = []
-    @State private var currentVisiblePage: Int = 0
-    @State private var isProgrammaticScroll: Bool = false
-    @State private var pageChangeTask: Task<Void, Never>?
-    @State private var programmaticScrollResetTask: Task<Void, Never>?
+    @State private var progressUpdateTask: Task<Void, Never>?
+    @State private var pageWindowCenter: Int = 0
+    @State private var windowUpdateTask: Task<Void, Never>?
     
     private var colors: AdaptiveColors {
         AdaptiveColors(colorScheme: colorScheme)
     }
     
-    // Determine how many pages to prefetch based on device
-    private var prefetchRange: Int {
-        // On iPad, show more pages at once
-        horizontalSizeClass == .regular ? 3 : 2
+    // Stable page range based on local state (updates throttled to prevent feedback loops)
+    private func stablePageRange(for book: AppBook) -> Range<Int> {
+        // Show large window: 3 before + current + 5 after = 9 pages total
+        let start = max(0, pageWindowCenter - 3)
+        let end = min(book.totalPages, pageWindowCenter + 6)
+        return start..<end
     }
 
     var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    if viewModel.isLoading {
-                        ProgressView("Loading book...")
-                            .padding()
-                    } else if let book = viewModel.currentBook {
-                        // Display pages starting from current page, with prefetching
-                        ForEach(Array(visiblePageRange(book: book).enumerated()), id: \.element) { _, pageIndex in
-                            SinglePageContentView(
-                                pageIndex: pageIndex,
-                                viewModel: viewModel,
-                                onWordSelected: onWordSelected
-                            )
-                            .id(pageIndex)
-                            .onAppear {
-                                LoggingService.shared.reading("📄 Page \(pageIndex) appeared. isProgrammatic: \(isProgrammaticScroll), currentVisible: \(currentVisiblePage)", level: .debug)
-                                
-                                visiblePageIndices.insert(pageIndex)
-                                
-                                // Only update current page if this is a user scroll (not programmatic)
-                                if !isProgrammaticScroll {
-                                    // Cancel any pending page change task
-                                    pageChangeTask?.cancel()
-                                    
-                                    // Only update if this page is close to current visible page (prevents jumps)
-                                    let distance = abs(pageIndex - currentVisiblePage)
-                                    if distance <= 2 {
-                                        // Debounce page changes to avoid rapid updates
-                                        pageChangeTask = Task {
-                                            // Wait to see if user is still scrolling
-                                            try? await Task.sleep(nanoseconds: 200_000_000) // 0.2 seconds
-                                            
-                                            guard !Task.isCancelled else { 
-                                                LoggingService.shared.reading("⏭️ Page change task cancelled for page \(pageIndex)", level: .debug)
-                                                return
-                                            }
-                                            
-                                            // Update current page when it becomes visible via user scroll
-                                            if pageIndex != currentVisiblePage {
-                                                LoggingService.shared.reading("📍 Updating current page from \(currentVisiblePage) to \(pageIndex) (user scroll)", level: .info)
-                                                currentVisiblePage = pageIndex
-                                                onPageChange(pageIndex)
-                                            }
-                                        }
-                                    } else {
-                                        LoggingService.shared.reading("⚠️ Ignoring page \(pageIndex) appear - too far from current page \(currentVisiblePage)", level: .debug)
-                                    }
-                                }
-                                
-                                // Prefetch next page if we're at the end of visible range
-                                if pageIndex == visiblePageRange(book: book).last,
-                                   pageIndex < book.totalPages - 1 {
-                                    LoggingService.shared.reading("⏳ Prefetching page \(pageIndex + 1)", level: .debug)
-                                    Task {
-                                        await viewModel.prefetchPage(pageIndex + 1)
-                                    }
-                                }
+        ScrollView {
+            LazyVStack(spacing: 0) {
+                if viewModel.isLoading {
+                    ProgressView("Loading book...")
+                        .padding()
+                } else if let book = viewModel.currentBook {
+                    // Display stable page range
+                    ForEach(Array(stablePageRange(for: book)), id: \.self) { pageIndex in
+                        SinglePageContentView(
+                            pageIndex: pageIndex,
+                            viewModel: viewModel,
+                            onWordSelected: onWordSelected
+                        )
+                        .id(pageIndex)
+                        .background(
+                            GeometryReader { geometry in
+                                Color.clear.preference(
+                                    key: PageVisibilityPreferenceKey.self,
+                                    value: [PageVisibility(
+                                        index: pageIndex,
+                                        frame: geometry.frame(in: .named("scroll"))
+                                    )]
+                                )
                             }
-                            .onDisappear {
-                                LoggingService.shared.reading("👋 Page \(pageIndex) disappeared", level: .debug)
-                                visiblePageIndices.remove(pageIndex)
-                                
-                                // If user is actively scrolling away from a page, clear programmatic flag
-                                if !isProgrammaticScroll && pageIndex == currentVisiblePage {
-                                    // User scrolled away from current page, allow natural tracking
-                                    pageChangeTask?.cancel()
+                        )
+                        .onAppear {
+                            // Prefetch pages at edges of window
+                            if pageIndex == stablePageRange(for: book).upperBound - 1,
+                               pageIndex < book.totalPages - 1 {
+                                Task {
+                                    await viewModel.prefetchPage(pageIndex + 1)
                                 }
-                            }
-                            
-                            // Page separator
-                            if pageIndex < book.totalPages - 1 {
-                                PageSeparatorView(pageNumber: pageIndex + 1)
-                                    .padding(.vertical, 24)
                             }
                         }
                         
-                        // End of book indicator
-                        if visiblePageRange(book: book).contains(book.totalPages - 1) {
-                            EndOfBookView()
-                                .padding(.vertical, 32)
+                        // Page separator
+                        if pageIndex < book.totalPages - 1 {
+                            PageSeparatorView(pageNumber: pageIndex + 1)
+                                .padding(.vertical, 24)
                         }
-                    } else {
-                        Text("No book loaded")
-                            .bodySecondaryStyle()
-                            .padding()
-                    }
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
-            }
-            .id(scrollViewID)
-            .onChange(of: viewModel.currentPageIndex) { oldIndex, newIndex in
-                // Only scroll programmatically if we're not already at that page
-                // This prevents feedback loops from scroll-based navigation
-                if oldIndex != newIndex && currentVisiblePage != newIndex {
-                    LoggingService.shared.reading("🔄 ViewModel page index changed: \(oldIndex) -> \(newIndex), triggering programmatic scroll", level: .info)
-                    
-                    // Cancel any pending page change tasks
-                    pageChangeTask?.cancel()
-                    programmaticScrollResetTask?.cancel()
-                    
-                    isProgrammaticScroll = true
-                    currentVisiblePage = newIndex
-                    
-                    withAnimation {
-                        proxy.scrollTo(newIndex, anchor: .top)
                     }
                     
-                    // Reset programmatic scroll flag after animation completes
-                    // Use a shorter timeout to prevent getting stuck
-                    programmaticScrollResetTask = Task { @MainActor in
-                        try? await Task.sleep(nanoseconds: 400_000_000) // 0.4 seconds
-                        
-                        guard !Task.isCancelled else { return }
-                        
-                        isProgrammaticScroll = false
-                        LoggingService.shared.reading("✅ Programmatic scroll completed, user control restored", level: .debug)
+                    // End of book indicator
+                    if stablePageRange(for: book).contains(book.totalPages - 1) {
+                        EndOfBookView()
+                            .padding(.vertical, 32)
                     }
-                } else if currentVisiblePage == newIndex {
-                    LoggingService.shared.reading("⏭️ Skipping scroll: already at page \(newIndex)", level: .debug)
+                } else {
+                    Text("No book loaded")
+                        .bodySecondaryStyle()
+                        .padding()
                 }
             }
-            .onAppear {
-                // Initialize current visible page
-                currentVisiblePage = viewModel.currentPageIndex
-                LoggingService.shared.reading("🚀 MultiPageContentView appeared, starting at page \(currentVisiblePage)", level: .info)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+        }
+        .coordinateSpace(name: "scroll")
+        .onPreferenceChange(PageVisibilityPreferenceKey.self) { pageVisibilities in
+            // Filter to only significantly visible pages
+            let significantlyVisible = pageVisibilities.filter { $0.visibleHeight > 0 }
+            
+            // Find the page with maximum visibility
+            guard let mostVisible = significantlyVisible.max(by: { $0.visibleHeight < $1.visibleHeight }) else {
+                return
+            }
+            
+            // Update page window center if needed (throttled to next frame)
+            if abs(mostVisible.index - pageWindowCenter) > 2 {
+                windowUpdateTask?.cancel()
+                windowUpdateTask = Task { @MainActor in
+                    // Wait for next frame
+                    try? await Task.sleep(nanoseconds: 16_000_000) // ~1 frame at 60fps
+                    guard !Task.isCancelled else { return }
+                    pageWindowCenter = mostVisible.index
+                }
+            }
+            
+            // Only update progress if it's a different page
+            guard mostVisible.index != viewModel.currentPageIndex else { return }
+            
+            // Cancel any pending update
+            progressUpdateTask?.cancel()
+            
+            // Debounce to ensure user has settled on this page
+            let targetPage = mostVisible.index
+            progressUpdateTask = Task { @MainActor in
+                try? await Task.sleep(nanoseconds: 500_000_000) // 0.5s
+                guard !Task.isCancelled else { return }
                 
-                // Safety: Reset programmatic scroll flag after a reasonable time
-                // This prevents getting permanently stuck if something goes wrong
-                Task { @MainActor in
-                    try? await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
-                    if isProgrammaticScroll {
-                        LoggingService.shared.reading("⚠️ Safety reset: isProgrammaticScroll was stuck, resetting", level: .info)
-                        isProgrammaticScroll = false
-                    }
-                }
+                // Passive update - no navigation, just track progress
+                await viewModel.updateProgressOnly(pageIndex: targetPage)
             }
         }
+        .onAppear {
+            pageWindowCenter = viewModel.currentPageIndex
+        }
     }
+}
+
+// MARK: - Page Visibility Tracking
+private struct PageVisibility: Equatable {
+    let index: Int
+    let frame: CGRect
     
-    // Calculate the range of pages to display
-    private func visiblePageRange(book: AppBook) -> Range<Int> {
-        let startIndex = max(0, viewModel.currentPageIndex - 1)
-        let endIndex = min(book.totalPages, viewModel.currentPageIndex + prefetchRange)
-        return startIndex..<endIndex
+    var visibleHeight: CGFloat {
+        // Calculate visible portion within screen bounds
+        let screenHeight = UIScreen.main.bounds.height
+        
+        // If page is completely off-screen, return 0
+        guard frame.maxY > 0 && frame.minY < screenHeight else {
+            return 0
+        }
+        
+        // Calculate the visible portion
+        let visibleTop = max(frame.minY, 0)
+        let visibleBottom = min(frame.maxY, screenHeight)
+        let visible = visibleBottom - visibleTop
+        
+        // Return 0 if less than 20% of screen height is visible
+        // This filters out pages that are barely in view
+        return visible > screenHeight * 0.2 ? visible : 0
+    }
+}
+
+private struct PageVisibilityPreferenceKey: PreferenceKey {
+    static var defaultValue: [PageVisibility] = []
+    
+    static func reduce(value: inout [PageVisibility], nextValue: () -> [PageVisibility]) {
+        value.append(contentsOf: nextValue())
     }
 }
 

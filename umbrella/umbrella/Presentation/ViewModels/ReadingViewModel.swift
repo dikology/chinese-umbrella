@@ -96,34 +96,45 @@ final class ReadingViewModel {
         await updateBookProgress()
     }
 
-    /// Navigate to next page
-    func nextPage() async {
-        guard let book = currentBook, currentPageIndex < book.totalPages - 1 else {
-            LoggingService.shared.reading("⚠️ Cannot go to next page: at page \(currentPageIndex) of \(currentBook?.totalPages ?? 0)", level: .debug)
+    /// Navigate to a specific page (primary navigation method)
+    /// This is the ONLY method that should change currentPageIndex
+    func navigateToPage(_ index: Int) async {
+        guard let book = currentBook else {
+            LoggingService.shared.reading("⚠️ Cannot navigate: no book loaded", level: .debug)
             return
         }
-        LoggingService.shared.reading("➡️ Navigating to next page: \(currentPageIndex) -> \(currentPageIndex + 1)", level: .info)
-        do {
-            try await loadPage(currentPageIndex + 1)
-        } catch {
-            LoggingService.shared.reading("❌ Failed to load next page: \(error.localizedDescription)", level: .error)
-            self.error = "Failed to load next page: \(error.localizedDescription)"
+        
+        guard book.pages.indices.contains(index) else {
+            LoggingService.shared.reading("⚠️ Cannot navigate to page \(index): out of bounds", level: .debug)
+            return
         }
+        
+        // No-op if already at the target page
+        guard index != currentPageIndex else {
+            LoggingService.shared.reading("⏭️ Already at page \(index), skipping navigation", level: .debug)
+            return
+        }
+        
+        LoggingService.shared.reading("📍 Navigating from page \(currentPageIndex) to \(index)", level: .info)
+        
+        do {
+            try await loadPage(index)
+        } catch {
+            LoggingService.shared.reading("❌ Failed to navigate to page \(index): \(error.localizedDescription)", level: .error)
+            self.error = "Failed to load page: \(error.localizedDescription)"
+        }
+    }
+    
+    /// Navigate to next page
+    func nextPage() async {
+        let nextIndex = currentPageIndex + 1
+        await navigateToPage(nextIndex)
     }
 
     /// Navigate to previous page
     func previousPage() async {
-        guard currentPageIndex > 0 else {
-            LoggingService.shared.reading("⚠️ Cannot go to previous page: at page 0", level: .debug)
-            return
-        }
-        LoggingService.shared.reading("⬅️ Navigating to previous page: \(currentPageIndex) -> \(currentPageIndex - 1)", level: .info)
-        do {
-            try await loadPage(currentPageIndex - 1)
-        } catch {
-            LoggingService.shared.reading("❌ Failed to load previous page: \(error.localizedDescription)", level: .error)
-            self.error = "Failed to load previous page: \(error.localizedDescription)"
-        }
+        let prevIndex = currentPageIndex - 1
+        await navigateToPage(prevIndex)
     }
 
     /// Select a word and lookup its definition
@@ -191,20 +202,20 @@ final class ReadingViewModel {
         markedWordsThisSession.contains(word)
     }
     
-    /// Update current page index (for scroll-based navigation)
-    func updateCurrentPageIndex(_ index: Int) async {
-        guard let book = currentBook, book.pages.indices.contains(index) else {
-            LoggingService.shared.reading("⚠️ Cannot update page index to \(index): out of bounds", level: .default)
-            return
-        }
+    /// Update progress passively (from scroll position) without triggering navigation
+    func updateProgressOnly(pageIndex: Int) async {
+        guard let book = currentBook else { return }
+        guard book.pages.indices.contains(pageIndex) else { return }
+        guard pageIndex != currentPageIndex else { return }
         
-        // Only update if different
-        if currentPageIndex != index {
-            LoggingService.shared.reading("📍 Updating page index via scroll: \(currentPageIndex) -> \(index)", level: .info)
-            currentPageIndex = index
-            currentPage = book.pages[index]
-            await updateBookProgress()
-        }
+        LoggingService.shared.reading("📊 Updating progress to page \(pageIndex) (scroll-based)", level: .info)
+        
+        // Update state
+        currentPageIndex = pageIndex
+        currentPage = book.pages[pageIndex]
+        
+        // Update progress in repository
+        await updateBookProgress()
     }
     
     /// Prefetch a page for lazy loading
